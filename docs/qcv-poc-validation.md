@@ -98,8 +98,7 @@ Hibernate insert batch 50/order_inserts와 MySQL rewriteBatchedStatements를 사
 
 기존 POST import/GET design/component/pin/net/issues API에 QCV를 연결했습니다.
 MockMvc에서 실제 XLSX/QCV bytes를 업로드하고 실제 MySQL 저장·조회/재업로드409/
-잘못된 파일400을 검증합니다. HTTP socket/browser 부하 테스트와 React 화면은 구현하지
-않았습니다. React 프로젝트가 없고 API는 인증/사용자 권한이 없어 공개 배포하지 않습니다.
+잘못된 파일400을 검증합니다. 이 절은 Stage 02 구현 당시의 API 검증입니다. 현재 React 화면과 실제 브라우저 통합 검증은 [Stage 03 PoC 검증](stage03-poc-validation.md)에 기록합니다. HTTP 부하 테스트와 기업 인증/설계별 권한은 추가 작업이며 공개 배포하지 않습니다.
 Stage 03의 Java snapshot 및 REST 예시는 stage03-interface.md와 stage02-api.md에 있습니다.
 
 ## 오픈소스 및 범위
@@ -121,11 +120,11 @@ Map/Set로 제한적 topology 탐색을 제공하므로 JGraphT/추가 서버가
 version은 호출자 제공값이며 고정 출처·체크섬과 mismatch issue를 확인해야 합니다.
 운영 SSO/설계 소유권/민감 원문 정책, 실제 삼성 성능·용량 검증은 추가 작업입니다.
 
-## 최종 전체 검증 (2026-10-11)
+## Stage 02 구현 당시 검증 (2026-10-11)
 
 `cd backend && ./gradlew clean test bootJar --no-daemon` 성공, 3m59s/8 tasks executed.
 21 JUnit suites, 기존51+추가29=80 PASS, failure0/error0/skipped0. 실행 JAR 생성 성공.
-정확한 suite별 수량과 6개 원본 및 3개 XLSX SHA/bytes는 qcv-poc-test-results.json에 있습니다.
+현재 전체 테스트 집계는 [integration-test-results.json](integration-test-results.json)에 통합합니다. 6개 원본의 체크섬과 크기는 [다운로드 manifest](../scripts/qcv-fixtures.json)에 고정되어 있습니다. 아래 80개는 Stage 02 완료 당시 결과이며, Stage 03 통합 후 Backend는 103개입니다.
 
 | 항목 | 실제 결과 |
 | --- | --- |
@@ -151,7 +150,7 @@ FE 실제445개 BOM+8개 QCV-only/335nets/1500연결을 같은 JVM에서 3회 �
 | MySQL persistence(원본 2파일 포함) | 1560.244 |
 | API retrieval(전체DB복원+view/JSON) | 379.926 |
 
-각 sample과 방법/환경, 비배치 baseline은 qcv-performance.json에 있습니다.
+위 표는 Stage 02 구현 당시 측정치입니다. Stage 03 통합 환경에서 다시 측정한 현재 sample과 방법/환경은 [audit-performance.json](audit-performance.json)에 있습니다.
 배치 미설정 baseline의 DB 중앙값13809ms, 배치설정 집중 측정1378ms, 최종 전체 suite측정1560ms.
 JVM warmup/실행환경 차이가 있으므로 이 값은 환경 내 관측치이며 고정 SLA/동시 부하 보장은
 아닙니다. 파일 read와 컨테이너/Spring 초기화, 네트워크 socket latency는 제외합니다.

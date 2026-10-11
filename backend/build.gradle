@@ -10,6 +10,7 @@ version = '0.1.0-SNAPSHOT'
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
 repositories { mavenCentral() }
 
+// CSV/Excel 파싱은 검증된 라이브러리를 사용하고, MySQL 스키마는 Flyway가 관리한다.
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -27,7 +28,7 @@ dependencies {
 
 tasks.named('test') { useJUnitPlatform() }
 
-// External sources are deliberately NOT committed; fetch the pinned six files first.
+// 원본 재배포 조건이 확인되지 않은 공개 자료는 커밋하지 않는다. 체크섬이 고정된 6개 원본을 내려받은 뒤 변환한다.
 def qcvFixtureDir = rootProject.file('../.local/qcv-fixtures')
 tasks.register('convertQcvBoms', JavaExec) {
     dependsOn classes

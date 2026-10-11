@@ -103,3 +103,18 @@ npm run dev
 ```
 
 로컬 backend/MySQL이 먼저 실행되어야 합니다. 기본 API bind127.0.0.1이며 remote/production/enterprise 미설정 요청은 거절합니다. 로컬 경계는 사용자 인증이나 설계 소유권이 아니며 공개 proxy/인터넷에 배포하지 않습니다.
+
+## 코드를 읽는 순서
+
+각 클래스의 한국어 주석은 역할을 설명하고, 핵심 분기의 주석은 데이터 처리 이유와 한계를 설명합니다.
+
+| 순서 | 시작 파일 | 확인할 내용 |
+| --- | --- | --- |
+| 1 | [DesignImportService](backend/src/main/java/com/circuitagent/design/api/DesignImportService.java) | 파일 형식 선택 → 파싱 → 통합 → 저장 |
+| 2 | [BomParser](backend/src/main/java/com/circuitagent/design/parse/BomParser.java), [QcvNetlistParser](backend/src/main/java/com/circuitagent/design/parse/QcvNetlistParser.java) | 원본 행 보존, 단위·실장 상태, NET/PIN 구분 |
+| 3 | [CircuitAssembler](backend/src/main/java/com/circuitagent/design/graph/CircuitAssembler.java), [CircuitGraph](backend/src/main/java/com/circuitagent/design/graph/CircuitGraph.java) | Reference 매칭, Pin/Net 인덱스, 제한적 탐색 |
+| 4 | [CircuitDesignStore](backend/src/main/java/com/circuitagent/design/persistence/CircuitDesignStore.java) | FK 순서로 저장하고 공통 모델로 복원 |
+| 5 | [AuditService](backend/src/main/java/com/circuitagent/audit/poc/AuditService.java), [DeterministicRuleChecker](backend/src/main/java/com/circuitagent/audit/poc/DeterministicRuleChecker.java) | 한 Snapshot으로 평가, 누락·DNP·UNKNOWN, 계산 근거 |
+| 6 | [App.tsx](frontend/src/App.tsx) | 업로드 → 회로 탐색 → Audit → 이력 표시 |
+
+빌드 결과와 의존성은 재생성되는 파일입니다. Backend는 Gradle 명령으로, Frontend는 `npm ci` 후 테스트/빌드 명령으로 다시 생성합니다. 실제 QCV 원본과 변환 XLSX는 `.local/qcv-fixtures`에서 테스트 입력으로 사용합니다.

@@ -129,3 +129,15 @@
 - Git diff 파일 확인: .local 원본/파생 XLSX/PDF/trace·runtime credential 미커밋, 기존 V1~V3 및 파서 보존. source 기능 최종검증 commit fcdd95e, 이후 변경은 문서만.
 - 다음: PR1 병합 이후 PR2 base 재검토, 팀원 Stage01 Adapter/identity attestation·SSO/설계 권한 계약, 실제 삼성 QCV·동작조건/정격/공차 검증. 테스트 실행 명령과 환경 준비는 frontend-guide.md/README에 기록.
 - 테스트용 own backend 및 로컬 MySQL 컨테이너는 검증 종료 후 정지; 공개 배포 없음.
+
+
+## 코드 주석 및 산출물 정리 — 2026-10-11
+
+- 구현: Backend 운영 클래스 58개에 한국어 역할 주석을 추가하고 파싱, 단위 변환, Reference 매칭, Pin/Net 인덱스, 제한적 탐색, FK 저장 순서, JSON 정밀도, DNP/UNKNOWN 판정과 계산 근거를 설명했다. 테스트와 React/API/설정/다운로드 스크립트에도 검증 범위와 처리 이유를 설명했다. Java/TypeScript/CSS 들여쓰기와 줄바꿈을 정리하고 README에 코드 읽기 순서를 추가했다.
+- 코드 정리: 사용하지 않는 import와 AuditPersistenceTest의 지역변수, StructuredRuleAdapter.bounds의 항상 true인 private 인자와 실행되지 않는 분기를 제거했다. 동작 토큰 비교에서 그 두 위치 외 Java 로직 변경 없음, TS AST 비교에서 레이아웃 공백/괄호 외 변화 없음. 적용된 Flyway V1~V4는 변경하지 않았다.
+- 문서 정리: 과거 stage02-test-results.json, stage02-review-test-results.json, qcv-poc-test-results.json, qcv-performance.json, stage02-pr.md를 삭제하고 최신 integration-test-results.json / audit-performance.json으로 안내한다. 단계별 과거 수치는 당시 기록으로 표시한다. Markdown 링크의 대상 파일이 모두 존재함을 확인했다.
+- 테스트: `cd backend && ./gradlew clean test bootJar --no-daemon` — 31 suites / 103 PASS / FAIL0 / ERROR0 / SKIP0 / BUILD SUCCESSFUL(5m26s). `cd frontend && npm test && npm run build` — unit6 PASS, TypeScript/Vite build PASS. `npm run test:e2e` — 실제 FE XLSX/QCV → Spring Boot/MySQL → React Chromium2 PASS(33.5s), API mock 없음.
+- 산출물 정리: backend/build·backend/.gradle, frontend/node_modules·dist·test-results·tsbuildinfo, .local의 중간 분석/로그/응답/성능 출력물과 PDF 추출 TXT/HTML을 삭제했다. 저장소 외 CircuitAgent-source.zip은 과거 Git tree와 동일하고 CircuitAgent.bundle은 현재 HEAD의 조상 백업임을 확인한 뒤 삭제했다. 필요 입력인 QCV/CSV/XLSX 9개와 공식 PDF 원본, source manifest, 작성한 Rule fixture, 테스트, Gradle Wrapper/lockfile은 유지한다.
+- 재실행: README의 다운로드 → convertQcvBoms → Gradle 명령, frontend-guide의 npm ci → test/build 절차로 생성 파일을 다시 만든다. 한국어 주석만으로 확인되지 않은 삼성 QCV 호환성/기업 인증/실제 동작 적합성을 주장하지 않는다.
+- 최종 재컴파일: 한국어 주석과 wildcard import 정리 후 `./gradlew compileJava bootJar --no-daemon` BUILD SUCCESSFUL(52s).
+- 다음: 같은 통합 작업 브랜치에서 PR #2에 반영하고 팀 코드 리뷰를 진행한다.
