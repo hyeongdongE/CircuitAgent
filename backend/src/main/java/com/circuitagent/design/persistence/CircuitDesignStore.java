@@ -28,17 +28,18 @@ public class CircuitDesignStore {
                 spec.mpn = value.mpn(); spec.type = value.type(); spec.attributes = value.attributes(); em.persist(spec);
             } else if (!toModel(spec).equals(value)) throw new IllegalArgumentException("Existing specification ID has different attributes");
             specs.put(value.id(), spec);
+            design.specifications.add(spec);
         }
         Map<String, ComponentInstanceEntity> components = new HashMap<>();
         for (var value : model.components().values()) {
             var c = new ComponentInstanceEntity(); c.id = UUID.randomUUID(); c.design = design;
             c.reference = value.reference(); c.value = value.value(); c.specification = specs.get(value.partSpecificationId());
-            c.rawSources = value.rawSources(); c.sourcePath = value.sourcePath(); em.persist(c); components.put(c.reference, c);
+            c.assemblyStatus = value.assemblyStatus(); c.rawSources = value.rawSources(); c.sourcePath = value.sourcePath(); em.persist(c); components.put(c.reference, c);
         }
         Map<PinKey, ComponentPinEntity> pins = new HashMap<>();
         for (var value : model.pins()) {
             var pin = new ComponentPinEntity(); pin.id = UUID.randomUUID(); pin.component = components.get(value.key().reference());
-            pin.number = value.key().number(); pin.name = value.name(); pin.electricalType = value.electricalType(); em.persist(pin); pins.put(value.key(), pin);
+            pin.designId = design.id; pin.number = value.key().number(); pin.name = value.name(); pin.electricalType = value.electricalType(); em.persist(pin); pins.put(value.key(), pin);
         }
         Map<String, CircuitNetEntity> nets = new HashMap<>();
         for (var value : model.nets().values()) {
@@ -68,26 +69,27 @@ public class CircuitDesignStore {
         var componentRows = em.createQuery("select c from ComponentInstanceEntity c join fetch c.specification where c.design.id = :id", ComponentInstanceEntity.class).setParameter("id", id).getResultList();
         Map<String, ComponentInstance> components = new LinkedHashMap<>();
         Map<UUID, PartSpecification> specs = new LinkedHashMap<>();
+        for (var spec : design.specifications) specs.put(spec.id, toModel(spec));
         for (var row : componentRows) {
             var spec = toModel(row.specification); specs.put(spec.id(), spec);
-            components.put(row.reference, new ComponentInstance(row.reference, row.value, spec.id(), row.rawSources, row.sourcePath));
+            components.put(row.reference, new ComponentInstance(row.reference, row.value, spec.id(), row.rawSources, row.sourcePath, row.assemblyStatus));
         }
         var pins = em.createQuery("select p from ComponentPinEntity p join fetch p.component where p.component.design.id = :id", ComponentPinEntity.class)
-            .setParameter("id", id).getResultStream().map(p -> new ComponentPin(key(p), p.name, p.electricalType)).toList();
+            .setParameter("id", id).getResultList().stream().map(p -> new ComponentPin(key(p), p.name, p.electricalType)).toList();
         var nets = new LinkedHashMap<String, CircuitNet>();
         for (var row : em.createQuery("select n from CircuitNetEntity n where n.design.id = :id", CircuitNetEntity.class).setParameter("id", id).getResultList())
             nets.put(row.netCode, new CircuitNet(row.netCode, row.name, row.sourcePath));
         var connections = em.createQuery("select c from PinConnectionEntity c join fetch c.pin p join fetch p.component join fetch c.net where c.design.id = :id", PinConnectionEntity.class)
-            .setParameter("id", id).getResultStream().map(c -> new PinConnection(key(c.pin), c.net.netCode)).toList();
+            .setParameter("id", id).getResultList().stream().map(c -> new PinConnection(key(c.pin), c.net.netCode)).toList();
         var issues = em.createQuery("select i from ImportIssueEntity i where i.design.id = :id order by i.issueOrder", ImportIssueEntity.class)
-            .setParameter("id", id).getResultStream().map(i -> new ImportIssue(i.severity, i.code, i.reference, i.source, i.message)).toList();
+            .setParameter("id", id).getResultList().stream().map(i -> new ImportIssue(i.severity, i.code, i.reference, i.source, i.message)).toList();
         return new CircuitDesign(id, design.name, design.version, components, specs, pins, nets, connections, issues, design.sourceMetadata);
     }
     @Transactional(readOnly = true)
     public List<SourceFile> sourceFiles(UUID id) {
         if (!repository.existsById(id)) throw new NoSuchElementException("Design not found: " + id);
         return em.createQuery("select f from ImportFileEntity f where f.design.id = :id order by f.role", ImportFileEntity.class)
-            .setParameter("id", id).getResultStream().map(f -> new SourceFile(f.role, f.filename, f.content)).toList();
+            .setParameter("id", id).getResultList().stream().map(f -> new SourceFile(f.role, f.filename, f.content)).toList();
     }
     private static PinKey key(ComponentPinEntity p) { return new PinKey(p.component.reference, p.number); }
     private static PartSpecification toModel(PartSpecificationEntity p) { return new PartSpecification(p.id, p.manufacturer, p.mpn, p.type, p.attributes); }

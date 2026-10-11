@@ -16,6 +16,7 @@ public final class SExpression {
     }
     private final String input;
     private int offset;
+    private int valueCount;
     private SExpression(String input) { this.input = input; }
     public static Node parse(String input) {
         var parser = new SExpression(input);
@@ -25,6 +26,7 @@ public final class SExpression {
         return (Node) root;
     }
     private Value read(int depth) {
+        if (++valueCount > ParserLimits.MAX_VALUES) throw error("Maximum expression count exceeded");
         if (depth > 256) throw error("Maximum nesting exceeded");
         space();
         if (offset == input.length()) throw error("Unexpected EOF");

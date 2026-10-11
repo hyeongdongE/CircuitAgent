@@ -31,7 +31,7 @@ public class CircuitAssembler {
                 }
                 components.put(entry.getKey(), new ComponentInstance(entry.getKey(),
                     hasValue(bomComponent.value()) ? bomComponent.value() : hasValue(netComponent.value()) ? netComponent.value() : null,
-                    bomComponent.partSpecificationId(), raw, netComponent.sourcePath()));
+                    bomComponent.partSpecificationId(), raw, netComponent.sourcePath(), bomComponent.assemblyStatus()));
             }
         }
         for (String ref : bom.components().keySet()) {
@@ -43,7 +43,7 @@ public class CircuitAssembler {
     private static boolean hasValue(String value) { return value != null && !value.isBlank() && !value.equals("~"); }
     private static boolean equivalent(String bom, String net, String type) {
         if (bom.equals(net)) return true;
-        String unit = switch (type == null ? "" : type) {
+        String unit = switch (type == null ? "" : type.toLowerCase(Locale.ROOT)) {
             case "resistor" -> "Ω"; case "capacitor" -> "F"; case "inductor" -> "H"; default -> null;
         };
         if (unit == null) return false;

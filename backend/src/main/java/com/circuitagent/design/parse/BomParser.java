@@ -28,19 +28,21 @@ public class BomParser {
             case "capacitance" -> "Capacitance";
             case "inductance" -> "Inductance";
             case "tolerance" -> "Tolerance";
+            case "dnp", "dnf", "donotpopulate", "donotfit" -> "dnp";
             default -> header.trim();
         };
     }
 
     public BomResult parse(byte[] bytes, String filename) throws IOException {
+        ParserLimits.file(bytes);
         String lower = filename.toLowerCase(Locale.ROOT);
         List<Row> rows;
         if (lower.endsWith(".csv")) rows = csvRows(bytes);
-        else if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) rows = excelRows(bytes);
+        else if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) rows = excelRows(bytes, lower.endsWith(".xlsx"));
         else throw new IllegalArgumentException("Supported BOM formats: CSV, XLSX, XLS");
         Map<String, ComponentInstance> components = new LinkedHashMap<>();
         Map<UUID, PartSpecification> specs = new LinkedHashMap<>();
-        Map<List<String>, PartSpecification> byMpn = new HashMap<>();
+        Map<List<String>, List<PartSpecification>> byMpn = new HashMap<>();
         List<ImportIssue> issues = new ArrayList<>();
         for (var row : rows) {
             Map<String, String> fields = new LinkedHashMap<>();
@@ -71,9 +73,11 @@ public class BomParser {
                 if (value == null) issues.add(new ImportIssue(Severity.WARNING, Code.MISSING_VALUE, ref, row.location(), "Missing component value"));
                 String type = clean(fields.get("type"));
                 if (type == null) type = inferType(ref);
+                else type = type.toLowerCase(Locale.ROOT);
+                AssemblyStatus placement = assemblyStatus(fields.get("dnp"), ref, row.location(), issues);
                 Map<String, AttributeValue> attributes = new LinkedHashMap<>();
                 for (var entry : fields.entrySet()) {
-                    if (Set.of("reference", "value", "quantity", "manufacturer", "mpn", "type", "Id").contains(entry.getKey())) continue;
+                    if (Set.of("reference", "value", "quantity", "manufacturer", "mpn", "type", "Id", "dnp").contains(entry.getKey())) continue;
                     if (clean(entry.getValue()) != null) {
                         attributes.put(entry.getKey(), normalize(entry.getKey(), entry.getValue(), ref, row.location(), issues));
                     }
@@ -84,28 +88,56 @@ public class BomParser {
                     case "inductor" -> "Inductance";
                     default -> null;
                 };
-                if (physical != null && value != null && !attributes.containsKey(physical))
-                    attributes.put(physical, normalize(physical, value, ref, row.location(), issues));
+                if (physical != null && value != null) {
+                    var fromValue = normalize(physical, value, ref, row.location(), issues);
+                    var explicit = attributes.putIfAbsent(physical, fromValue);
+                    if (explicit != null && explicit.normalized() != null && fromValue.normalized() != null
+                        && explicit.normalized().compareTo(fromValue.normalized()) != 0)
+                        issues.add(new ImportIssue(Severity.WARNING, Code.VALUE_MISMATCH, ref, row.location(),
+                            "Explicit " + physical + " column differs from Value; explicit attribute retained"));
+                }
                 String manufacturer = clean(fields.get("manufacturer"));
                 String mpn = clean(fields.get("mpn"));
                 var candidate = new PartSpecification(UUID.randomUUID(), manufacturer, mpn, type, attributes);
                 PartSpecification spec = candidate;
                 if (mpn != null) {
                     var key = List.of(manufacturer == null ? "" : manufacturer, mpn);
-                    var existing = byMpn.putIfAbsent(key, candidate);
-                    if (existing != null) {
-                        if (Objects.equals(existing.type(), type) && existing.attributes().equals(attributes)) spec = existing;
-                        else issues.add(new ImportIssue(Severity.WARNING, Code.SPECIFICATION_CONFLICT, ref, row.location(),
+                    var variants = byMpn.computeIfAbsent(key, ignored -> new ArrayList<>());
+                    var existing = variants.stream().filter(s -> equivalentSpecification(s, candidate)).findFirst();
+                    if (existing.isPresent()) spec = existing.get();
+                    else {
+                        if (!variants.isEmpty()) issues.add(new ImportIssue(Severity.WARNING, Code.SPECIFICATION_CONFLICT, ref, row.location(),
                             "Same manufacturer/MPN has conflicting source attributes; separate specification retained"));
+                        variants.add(candidate);
                     }
                 }
                 specs.put(spec.id(), spec);
-                components.put(ref, new ComponentInstance(ref, value, spec.id(), Map.of("bom", row.raw()), row.location()));
+                components.put(ref, new ComponentInstance(ref, value, spec.id(), Map.of("bom", row.raw(), "provenance", Map.of("bomLocation", row.location())), row.location(), placement));
             }
         }
         return new BomResult(components, specs, issues);
     }
 
+    private static AssemblyStatus assemblyStatus(String raw, String ref, String source, List<ImportIssue> issues) {
+        if (clean(raw) == null) return AssemblyStatus.UNSPECIFIED;
+        return switch (raw.trim().toLowerCase(Locale.ROOT)) {
+            case "1", "true", "yes", "y", "dnp", "dnf", "x" -> AssemblyStatus.DNP;
+            case "0", "false", "no", "n" -> AssemblyStatus.FITTED;
+            default -> {
+                issues.add(new ImportIssue(Severity.WARNING, Code.PARSE_FAILURE, ref, source, "Unrecognized DNP state; placement unspecified"));
+                yield AssemblyStatus.UNSPECIFIED;
+            }
+        };
+    }
+    private static boolean equivalentSpecification(PartSpecification a, PartSpecification b) {
+        if (!Objects.equals(a.type(), b.type()) || !a.attributes().keySet().equals(b.attributes().keySet())) return false;
+        return a.attributes().entrySet().stream().allMatch(e -> {
+            var x = e.getValue(); var y = b.attributes().get(e.getKey());
+            return x.normalized() != null && y.normalized() != null
+                ? Objects.equals(x.unit(), y.unit()) && x.normalized().compareTo(y.normalized()) == 0
+                : x.equals(y);
+        });
+    }
     private static AttributeValue normalize(String key, String raw, String ref, String source, List<ImportIssue> issues) {
         String unit = switch (key) {
             case "Resistance" -> "Ω";
@@ -140,8 +172,13 @@ public class BomParser {
         var result = new ArrayList<Row>();
         try (var parser = CSVFormat.DEFAULT.builder().setDelimiter(delimiter).setIgnoreEmptyLines(true).get().parse(new StringReader(text))) {
             List<String> headers = null;
+            int cellBudget = 0;
             for (var record : parser) {
+                if (record.getRecordNumber() > ParserLimits.MAX_ROWS) throw new IllegalArgumentException("BOM row limit exceeded");
                 List<String> cells = record.toList();
+                cellBudget += cells.size();
+                if (cellBudget > ParserLimits.MAX_CELLS) throw new IllegalArgumentException("BOM cell limit exceeded");
+                if (cells.size() > ParserLimits.MAX_COLUMNS) throw new IllegalArgumentException("BOM column limit exceeded");
                 if (headers == null) { headers = checkedHeaders(cells); continue; }
                 var row = rowMap(headers, cells);
                 if (row.values().stream().anyMatch(v -> !v.isBlank())) result.add(new Row("csv:record:" + record.getRecordNumber(), row));
@@ -179,23 +216,38 @@ public class BomParser {
         return List.copyOf(cells);
     }
     private static Map<String, String> rowMap(List<String> headers, List<String> cells) {
+        for (int i = 0; i < cells.size(); i++) {
+            if (!cells.get(i).isBlank() && (i >= headers.size() || headers.get(i).isBlank()))
+                throw new IllegalArgumentException("Populated BOM cell has no column header");
+        }
         var row = new LinkedHashMap<String, String>();
         for (int i = 0; i < headers.size(); i++) {
             if (!headers.get(i).isBlank()) row.put(headers.get(i), i < cells.size() ? cells.get(i) : "");
         }
         return row;
     }
-    private static List<Row> excelRows(byte[] bytes) throws IOException {
+    private static List<Row> excelRows(byte[] bytes, boolean xlsx) throws IOException {
+        var magic = org.apache.poi.poifs.filesystem.FileMagic.valueOf(bytes);
+        if (magic != (xlsx ? org.apache.poi.poifs.filesystem.FileMagic.OOXML : org.apache.poi.poifs.filesystem.FileMagic.OLE2))
+            throw new IllegalArgumentException("Excel content does not match filename extension");
+        if (xlsx) validateArchive(bytes);
         var result = new ArrayList<Row>();
         var formatter = new DataFormatter(Locale.ROOT);
         boolean found = false;
         try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
+            if ((workbook instanceof org.apache.poi.xssf.usermodel.XSSFWorkbook) != xlsx)
+                throw new IllegalArgumentException("Excel content does not match filename extension");
             var evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+            int cellBudget = 0;
             for (var sheet : workbook) {
                 List<String> headers = null;
                 for (var row : sheet) {
                     var cells = new ArrayList<String>();
                     int count = Math.max(row.getLastCellNum(), headers == null ? 0 : headers.size());
+                    if (count > ParserLimits.MAX_COLUMNS || row.getRowNum() >= ParserLimits.MAX_ROWS)
+                        throw new IllegalArgumentException("BOM row/column limit exceeded");
+                    cellBudget += Math.max(0, count);
+                    if (cellBudget > ParserLimits.MAX_CELLS) throw new IllegalArgumentException("BOM cell limit exceeded");
                     for (int i = 0; i < count; i++) cells.add(formatter.formatCellValue(row.getCell(i), evaluator));
                     if (headers == null) {
                         if (cells.stream().anyMatch(c -> canonical(c).equals("reference"))) { headers = checkedHeaders(cells); found = true; }
@@ -206,7 +258,26 @@ public class BomParser {
                 }
             }
         }
+        catch (RuntimeException e) { throw new IllegalArgumentException("Invalid or unsupported Excel content", e); }
         if (!found) throw new IllegalArgumentException("BOM Reference column required");
         return result;
     }
+    /** Inspect expansion before POI allocates workbook structures. Keep POI's own ZIP/XML checks. */
+    private static void validateArchive(byte[] bytes) throws IOException {
+        int entries = 0;
+        long expanded = 0;
+        byte[] buffer = new byte[8192];
+        try (var zip = new java.util.zip.ZipInputStream(new ByteArrayInputStream(bytes))) {
+            while (zip.getNextEntry() != null) {
+                if (++entries > 1000) throw new IllegalArgumentException("Excel ZIP entry limit exceeded");
+                int count;
+                while ((count = zip.read(buffer)) != -1) {
+                    expanded += count;
+                    if (expanded > ParserLimits.MAX_EXPANDED_BYTES)
+                        throw new IllegalArgumentException("Excel expanded content limit exceeded");
+                }
+            }
+        }
+    }
+
 }

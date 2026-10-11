@@ -12,6 +12,7 @@ import java.time.Instant;
 public class ComponentPinEntity {
     @Id UUID id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "component_id") ComponentInstanceEntity component;
+    @Column(name = "design_id", nullable = false) UUID designId;
     @Column(nullable = false, length = 128) String number;
     @Column(columnDefinition = "text") String name;
     @Column(length = 128) String electricalType;

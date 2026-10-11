@@ -13,6 +13,7 @@ import static com.circuitagent.design.parse.SExpression.Node;
 public class KiCadNetlistParser implements NetlistParser {
     @Override public String format() { return "kicad"; }
     @Override public NetlistResult parse(byte[] bytes, String filename) throws IOException {
+        ParserLimits.file(bytes);
         var root = SExpression.parse(StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString());
         if (!root.tag().equals("export")) throw new IllegalArgumentException("Expected KiCad export root");
         var compRoot = required(root, "components");
@@ -28,6 +29,8 @@ public class KiCadNetlistParser implements NetlistParser {
                 var pins = part.child("pins").map(p -> p.children("pin")).orElse(List.of());
                 libraries.put(libKey(part.field("lib"), part.field("part")), pins);
                 part.child("aliases").ifPresent(aliases -> {
+                    for (var value : aliases.values().subList(1, aliases.values().size()))
+                        if (value instanceof SExpression.Atom a) libraries.put(libKey(part.field("lib"), a.text()), pins);
                     for (var alias : aliases.children("alias")) libraries.put(libKey(part.field("lib"), alias.scalar()), pins);
                 });
             }
@@ -55,10 +58,12 @@ public class KiCadNetlistParser implements NetlistParser {
             });
             String path = comp.child("sheetpath").map(p -> p.field("names")).orElse(null);
             if (path != null) raw.put("sheetpath", path);
+            comp.child("sheetpath").ifPresent(p -> { if (p.field("tstamps") != null) raw.put("sheetpath:tstamps", p.field("tstamps")); });
             Node lib = comp.child("libsource").orElse(null);
             if (lib != null) {
                 if (lib.field("lib") != null) raw.put("library", lib.field("lib"));
                 if (lib.field("part") != null) raw.put("libraryPart", lib.field("part"));
+                raw.put("pinInventory", libraries.containsKey(libKey(lib.field("lib"), lib.field("part"))) ? "complete" : "connections-only");
                 for (var pin : libraries.getOrDefault(libKey(lib.field("lib"), lib.field("part")), List.of())) {
                     var key = new PinKey(ref, field(pin, "num"));
                     pins.put(key, new ComponentPin(key, pin.field("name"), pin.field("type")));
@@ -71,9 +76,10 @@ public class KiCadNetlistParser implements NetlistParser {
         for (var net : netRoot.children("net")) {
             String id = field(net, "code");
             String name = field(net, "name");
-            if (nets.putIfAbsent(id, new CircuitNet(id, name, metadata.get("source"))) != null) {
-                issues.add(new ImportIssue(Severity.ERROR, Code.DUPLICATE_NET, null, filename, "Duplicate Net code " + id));
-                continue;
+            var previousNet = nets.putIfAbsent(id, new CircuitNet(id, name, metadata.get("source")));
+            if (previousNet != null) {
+                if (!previousNet.name().equals(name)) throw new IllegalArgumentException("Conflicting names for duplicate Net code " + id);
+                issues.add(new ImportIssue(Severity.WARNING, Code.DUPLICATE_NET, null, filename, "Duplicate Net code " + id + "; nodes merged"));
             }
             for (var node : net.children("node")) {
                 String ref = field(node, "ref");
@@ -90,7 +96,7 @@ public class KiCadNetlistParser implements NetlistParser {
                 var previous = connections.get(key);
                 if (ambiguous.contains(key) || previous != null && !previous.netId().equals(id)) {
                     ambiguous.add(key); connections.remove(key);
-                    issues.add(new ImportIssue(Severity.ERROR, Code.AMBIGUOUS_CONNECTION, ref, filename,
+                    issues.add(new ImportIssue(Severity.ERROR, Code.AMBIGUOUS_CONNECTION, ref, "pin:" + key.number(),
                         "Pin " + key.number() + " assigned to multiple Nets; connection omitted"));
                 } else connections.putIfAbsent(key, new PinConnection(key, id));
             }

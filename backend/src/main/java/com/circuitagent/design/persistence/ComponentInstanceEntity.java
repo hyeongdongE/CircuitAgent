@@ -17,5 +17,6 @@ public class ComponentInstanceEntity {
     @Column(name = "component_value", columnDefinition = "text") String value;
     @Column(columnDefinition = "text") String sourcePath;
     @JdbcTypeCode(SqlTypes.JSON) @Column(nullable = false, columnDefinition = "json") Map<String, Map<String, String>> rawSources;
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16) AssemblyStatus assemblyStatus;
     protected ComponentInstanceEntity() {}
 }

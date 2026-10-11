@@ -50,4 +50,75 @@ public final class CircuitGraph {
     public Map<String, AttributeValue> getComponentAttributes(String ref) {
         return getComponentSpecification(ref).attributes();
     }
+    public UUID designId() { return design.id(); }
+    public List<ImportIssue> getComponentIssues(String ref) {
+        getComponent(ref);
+        return design.issues().stream().filter(i -> i.reference() == null || ref.equals(i.reference())).toList();
+    }
+    /** Pin names need not be unique (e.g. several GND pins); return every exact match. */
+    public List<ComponentPin> getPinsByName(String ref, String name) {
+        Objects.requireNonNull(name, "name");
+        return getComponentPins(ref).stream().filter(p -> name.equals(p.name())).toList();
+    }
+    public enum ConnectionStatus { CONNECTED, UNCONNECTED, AMBIGUOUS, UNRESOLVED, MISSING_PIN }
+    public record PinContext(PinKey key, ComponentPin pin, ConnectionStatus status, CircuitNet net,
+                             ComponentInstance component, PartSpecification specification, List<ImportIssue> issues) {}
+    public PinContext getPinContext(String ref, String number) {
+        var component = getComponent(ref);
+        var key = new PinKey(ref, number);
+        var pin = pins.get(key);
+        var net = Optional.ofNullable(netOfPin.get(key)).map(design.nets()::get).orElse(null);
+        boolean ambiguous = design.issues().stream().anyMatch(i -> i.code() == ImportIssue.Code.AMBIGUOUS_CONNECTION
+            && ref.equals(i.reference()) && (("pin:" + number).equals(i.source())
+                || i.message().startsWith("Pin " + number + " assigned to multiple Nets")));
+        boolean inventoryKnown = "complete".equals(component.rawSources().getOrDefault("netlist", Map.of()).get("pinInventory"));
+        ConnectionStatus status = pin == null ? ConnectionStatus.MISSING_PIN : ambiguous ? ConnectionStatus.AMBIGUOUS
+            : net != null ? ConnectionStatus.CONNECTED : inventoryKnown ? ConnectionStatus.UNCONNECTED : ConnectionStatus.UNRESOLVED;
+        return new PinContext(key, pin, status, net, component, getComponentSpecification(ref), getComponentIssues(ref));
+    }
+    public enum EdgeKind { NET, COMPONENT }
+    public record TraversalEdge(PinKey from, PinKey to, EdgeKind kind, String netId) {}
+    public record Neighborhood(Set<PinKey> pins, Set<String> nets, Set<TraversalEdge> edges) {}
+    /**
+     * Bounded topology exploration. Component crossings require an explicit caller allow-list.
+     * They express topology only, not an electrical short or a conducting-state assertion.
+     * DNP components cannot be crossed; no automatic traversal through ICs or all two-pin parts.
+     */
+    public Neighborhood explore(PinKey start, Set<String> passThroughReferences, int maxSteps) {
+        if (maxSteps < 0 || maxSteps > 32) throw new IllegalArgumentException("maxSteps must be between 0 and 32");
+        getNetOfPin(start.reference(), start.number()); // validate start; unconnected pins are valid
+        passThroughReferences.forEach(this::getComponent);
+        var reached = new LinkedHashSet<PinKey>();
+        var reachedNets = new LinkedHashSet<String>();
+        var edges = new LinkedHashSet<TraversalEdge>();
+        record Visit(PinKey pin, int depth) {}
+        var queue = new ArrayDeque<Visit>();
+        reached.add(start); queue.add(new Visit(start, 0));
+        while (!queue.isEmpty()) {
+            var visit = queue.remove();
+            String netId = netOfPin.get(visit.pin());
+            if (netId != null) reachedNets.add(netId);
+            if (visit.depth() == maxSteps) continue;
+            var next = new ArrayList<TraversalEdge>();
+            if (netId != null) for (var pin : getConnectedPins(netId))
+                if (!pin.key().equals(visit.pin())) next.add(edge(visit.pin(), pin.key(), EdgeKind.NET, netId));
+            String ref = visit.pin().reference();
+            if (passThroughReferences.contains(ref) && getComponent(ref).assemblyStatus() != AssemblyStatus.DNP)
+                for (var pin : getComponentPins(ref)) if (!pin.key().equals(visit.pin()))
+                    next.add(edge(visit.pin(), pin.key(), EdgeKind.COMPONENT, null));
+            for (var e : next) {
+                edges.add(e);
+                var destination = e.from().equals(visit.pin()) ? e.to() : e.from();
+                if (reached.add(destination)) queue.add(new Visit(destination, visit.depth() + 1));
+                if (reached.size() > 10_000 || edges.size() > 50_000)
+                    throw new IllegalArgumentException("Traversal budget exceeded; reduce maxSteps/allow-list");
+            }
+        }
+        return new Neighborhood(Set.copyOf(reached), Set.copyOf(reachedNets), Set.copyOf(edges));
+    }
+    private static TraversalEdge edge(PinKey a, PinKey b, EdgeKind kind, String netId) {
+        int order = Comparator.comparing(PinKey::reference).thenComparing(PinKey::number).compare(a, b);
+        return order <= 0 ? new TraversalEdge(a, b, kind, netId) : new TraversalEdge(b, a, kind, netId);
+    }
+
 }

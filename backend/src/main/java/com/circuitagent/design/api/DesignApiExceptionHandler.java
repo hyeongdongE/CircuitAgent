@@ -29,7 +29,7 @@ public class DesignApiExceptionHandler {
     ResponseEntity<ApiError> tooLarge(MaxUploadSizeExceededException e) { return error(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Each file must be at most 10 MiB"); }
     @ExceptionHandler({IllegalArgumentException.class, ConstraintViolationException.class, MissingServletRequestPartException.class,
         MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class, IOException.class})
-    ResponseEntity<ApiError> badRequest(Exception e) { return error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", e.getMessage()); }
+    ResponseEntity<ApiError> badRequest(Exception e) { return error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Invalid request parameters or input files"); }
     private static ResponseEntity<ApiError> error(HttpStatus status, String code, String message) {
         return ResponseEntity.status(status).body(new ApiError(code, message, List.of()));
     }

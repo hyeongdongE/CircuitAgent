@@ -15,5 +15,8 @@ public class CircuitDesignEntity {
     @Column(nullable = false, length = 64) String version;
     @Column(nullable = false) Instant importedAt;
     @JdbcTypeCode(SqlTypes.JSON) @Column(nullable = false, columnDefinition = "json") Map<String, String> sourceMetadata;
+    @ManyToMany
+    @JoinTable(name = "circuit_design_specification", joinColumns = @JoinColumn(name = "design_id"), inverseJoinColumns = @JoinColumn(name = "specification_id"))
+    Set<PartSpecificationEntity> specifications = new LinkedHashSet<>();
     protected CircuitDesignEntity() {}
 }

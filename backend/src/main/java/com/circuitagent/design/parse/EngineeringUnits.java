@@ -15,7 +15,9 @@ public final class EngineeringUnits {
     private EngineeringUnits() {}
 
     public static AttributeValue normalize(String raw, String unit) {
+        if (raw.length() > 128) throw new IllegalArgumentException("Engineering value exceeds 128 characters");
         String value = raw.trim();
+        if (unit.equals("%") && value.startsWith("±")) value = value.substring(1).trim();
         String suffix = switch (unit) {
             case "Ω" -> "(?i:ohms?|Ω|Ω)";
             case "%" -> "%";
@@ -30,8 +32,13 @@ public final class EngineeringUnits {
             if (unit.equals("Ω") && value.endsWith("R")) value = value.substring(0, value.length() - 1);
             var match = NUMBER.matcher(value);
             if (!match.matches()) throw new IllegalArgumentException("Cannot normalize '" + raw + "' as " + unit);
-            number = new BigDecimal(match.group(1)).scaleByPowerOfTen(POWERS.get(match.group(2)));
+            if (unit.equals("%") && !match.group(2).isEmpty()) throw new IllegalArgumentException("Tolerance does not support SI prefixes");
+            try {
+                number = new BigDecimal(match.group(1)).scaleByPowerOfTen(POWERS.get(match.group(2)));
+            } catch (ArithmeticException | NumberFormatException e) { throw new IllegalArgumentException("Engineering value is out of range", e); }
         }
+        if (number.precision() > 64 || Math.abs((long) number.scale()) > 64)
+            throw new IllegalArgumentException("Engineering value exceeds precision/scale limit 64");
         return new AttributeValue(raw, number.stripTrailingZeros(), unit);
     }
 }
