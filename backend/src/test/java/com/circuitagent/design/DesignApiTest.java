@@ -79,4 +79,34 @@ class DesignApiTest extends MySqlIntegrationSupport {
         mvc.perform(multipart("/api/designs/import").file(empty).file(net5v()).param("name", "empty"))
             .andExpect(status().isBadRequest());
     }
+    @Test
+    void invalidExcelAndWrongNetlistExtensionAreClientErrors() throws Exception {
+        var badExcel = new MockMultipartFile("bom", "bad.xlsx", "application/octet-stream", "not an Excel file".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        mvc.perform(multipart("/api/designs/import").file(badExcel).file(net5v()).param("name", "bad-excel"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PARSE_FAILURE"));
+        var wrongExtension = new MockMultipartFile("netlist", "script.exe", "text/plain", BomParserTest.fixture("5v/5Volt_Power_Supply.net"));
+        mvc.perform(multipart("/api/designs/import").file(bom5v()).file(wrongExtension).param("name", "wrong-extension"))
+            .andExpect(status().isBadRequest());
+    }
+    @Test
+    void oversizedFileIsRejectedBeforeParsing() throws Exception {
+        var large = new MockMultipartFile("bom", "large.csv", "text/csv", new byte[10 * 1024 * 1024 + 1]);
+        mvc.perform(multipart("/api/designs/import").file(large).file(net5v()).param("name", "large"))
+            .andExpect(status().isPayloadTooLarge()).andExpect(jsonPath("$.code").value("FILE_TOO_LARGE"));
+    }
+    @Test
+    void additivePinContextAndPlacementAreAvailableWithoutChangingExistingFields() throws Exception {
+        String body = mvc.perform(multipart("/api/designs/import").file(bom5v()).file(net5v()).param("name", "pin-context"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = json.readTree(body).get("id").asText();
+        mvc.perform(get("/api/designs/" + id + "/components/R1/pins/1")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CONNECTED")).andExpect(jsonPath("$.net.id").value("6"))
+            .andExpect(jsonPath("$.specification.attributes.Resistance.normalized").value(1000));
+        mvc.perform(get("/api/designs/" + id + "/components/R1/pins/99")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("MISSING_PIN"));
+        mvc.perform(get("/api/designs/" + id + "/components/absent/pins/1")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/designs/" + id + "/components/R1")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.assemblyStatus").value("UNSPECIFIED"));
+    }
+
 }
