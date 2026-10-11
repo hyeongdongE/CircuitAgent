@@ -31,3 +31,12 @@
 - 테스트 결과: 3개 PASS (사양 공유 및 누락값, 잘못된 연결 거부, 원본값 방어적 복사).
 - 미해결 문제: 없음. DB는 아직 구현하지 않음.
 - 다음 단계: STEP 3 BOM CSV/XLSX/XLS 파서.
+
+## STEP 3 — 완료
+
+- 구현한 기능: Commons CSV (쉼표/세미콜론/탭, UTF-8 BOM), POI XLSX/XLS (시트·헤더 탐색·셀 형식), 컬럼 별칭 표준화, 그룹 Reference 분리, 명시된 MPN 사양 공유, SI BigDecimal 정규화/원문 보존, 중복·누락·수량·단위 이슈.
+- 변경 파일: backend/build.gradle, design/parse/{BomParser,BomResult,EngineeringUnits}.java, BomParserTest.java.
+- 테스트 명령: `./gradlew test --tests com.circuitagent.design.BomParserTest`.
+- 테스트 결과: 6개 PASS. 실제 5V Reference 12, R1 원문 1k / 정규값 1000 Ω, U1 L7805, 그룹 정상 분리, 이슈 0. 실제 Shift 27, R3~R9 및 LED 사양 공유; 원본 '~' 값의 MISSING_VALUE 1건을 정확히 기록. XLS/XLSX 테스트는 보조 생성 데이터이며 실제 공개 CSV 검증과 구별함.
+- 미해결 문제: Reference 범위 축약(R1-R5)과 비 UTF-8 CSV는 임의 해석하지 않음. 명시적 Reference와 UTF-8 입력이 필요함.
+- 다음 단계: STEP 4 구조적 KiCad S-expression 파서. QCV 문법 추정 없음.
