@@ -111,3 +111,10 @@
 - 원격 브랜치/파일을 읽거나 push할 수 없어 기존 원격 내용을 확인하지 못함. 원격 수정/병합/PR 생성은 수행하지 않음.
 - 다음 단계: GitHub의 ChatGPT/Codex 앱 저장소 접근 설정에 CircuitAgent를 추가하고 현재 연결 권한을 갱신 → 원격 초기 상태 확인 → 기존 내용 보존하면서 브랜치 push 및 PR 생성.
 - 이 후속 변경은 문서/원격 URL 설정만이며 구현 코드는 변경하지 않음. 이전 전체 테스트 27개 PASS 결과 유지, 추가 테스트 미실행.
+
+## GitHub 접근 해결 및 업로드
+
+- 사용자가 ChatGPT Codex Connector GitHub App을 설치하고 저장소 접근을 허용한 뒤 API 읽기/쓰기 권한이 확인됨.
+- 원격 `hyeongdongE/CircuitAgent`는 비공개이며 초기 브랜치/커밋이 없는 빈 저장소로 확인함.
+- gh credential helper로 Git 인증을 연결함. 기본 부트스트랩 main 및 Stage 02 작업 브랜치를 업로드하고 PR을 생성할 예정.
+- 구현 코드는 변경하지 않음. 마지막 clean test/bootJar: 27개 PASS, 실패/오류/skip 0. QCV는 여전히 실제 자료가 없어 미지원.
