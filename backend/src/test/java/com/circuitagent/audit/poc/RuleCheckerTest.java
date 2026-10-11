@@ -40,4 +40,13 @@ class RuleCheckerTest {
         var g=own("Reference,Value,DNP\nR2,1k,no\n","NET : 'x' R2-1\n");
         assertThat(checker.evaluate(g,disabled).status()).isEqualTo(AuditStatus.NOT_APPLICABLE);
     }
+    @Test void importedMpnTextAloneDoesNotAttestManufacturerOrDatasheetApplicability() throws Exception {
+        var g=own("Reference,Value,MPN,DNP\nR1,1k,unverified-part,no\n","NET : 'x' R1-1\n");
+        assertThat(g.getComponentSpecification("R1").mpn()).isEqualTo("unverified-part");
+        var r=RuleInputTest.range("identity","Ω","900","1100");
+        var guarded=new AuditRule(r.id(),r.version(),r.type(),new AuditRule.Target("R1",null,null,null,true),r.condition(),r.applicable(),r.notApplicableReason(),r.attribute(),r.unit(),r.expected(),r.expectedNet(),r.divider(),r.source());
+        var result=checker.evaluate(g,guarded);
+        assertThat(result.status()).isEqualTo(AuditStatus.UNKNOWN);
+        assertThat(result.missingInputs()).anyMatch(s->s.contains("attestation"));
+    }
 }

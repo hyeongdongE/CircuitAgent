@@ -20,7 +20,11 @@ public class DeterministicRuleChecker {
                 return work.result(AuditStatus.NOT_APPLICABLE,null,"Part Name applicability does not match; no MPN guessing");
             if(target.assemblyStatus()==AssemblyStatus.DNP)return work.result(AuditStatus.NOT_APPLICABLE,null,"Target is explicitly not mounted");
             if(target.assemblyStatus()==AssemblyStatus.UNSPECIFIED)work.missing.add("Target assembly state is unspecified");
-            if(rule.target().requireVerifiedMpn() && graph.getComponentSpecification(target.reference()).mpn()==null)work.missing.add("Verified manufacturer MPN / applicable silicon revision");
+            if(rule.target().requireVerifiedMpn()) {
+                if(graph.getComponentSpecification(target.reference()).mpn()==null)
+                    work.missing.add("Verified manufacturer MPN / applicable silicon revision");
+                else work.missing.add("Independent MPN / datasheet applicability attestation is unavailable in poc-rule-v1");
+            }
             return switch(rule.type()) {
                 case VALUE_RANGE -> {
                     var value=work.attribute(target.reference(),rule.attribute(),rule.unit());
