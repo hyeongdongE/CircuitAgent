@@ -98,7 +98,7 @@ public class BomParser {
                     default -> null;
                 };
                 if (physical != null && value != null) {
-                    var fromValue = normalize(physical, value, ref, row.location(), issues);
+                    var fromValue = normalize(physical, fields.get("value"), ref, row.location(), issues);
                     var explicit = attributes.putIfAbsent(physical, fromValue);
                     if (explicit != null && explicit.normalized() != null && fromValue.normalized() != null
                         && explicit.normalized().compareTo(fromValue.normalized()) != 0)
@@ -135,7 +135,9 @@ public class BomParser {
         return normalized.contains("refdes") && normalized.contains("qtyonboard");
     }
     private static String column(String header, boolean catalogue) {
-        return catalogue && header.trim().equalsIgnoreCase("PartNumber") ? "Part Number" : canonical(header);
+        if (catalogue && header.trim().equalsIgnoreCase("PartNumber")) return "Part Number";
+        if (catalogue && header.trim().equalsIgnoreCase("Voltage")) return "Voltage"; // no inferred rating semantics
+        return canonical(header);
     }
     private static AssemblyStatus noMount(String raw, String ref, String source, List<ImportIssue> issues) {
         if (raw == null || raw.isBlank()) return AssemblyStatus.FITTED; // observed NoMount flag convention
@@ -168,7 +170,7 @@ public class BomParser {
             case "Resistance" -> "Ω";
             case "Capacitance" -> "F";
             case "Inductance" -> "H";
-            case "Voltage Rating" -> "V";
+            case "Voltage Rating", "Voltage" -> "V";
             case "Current Rating" -> "A";
             case "Tolerance" -> "%";
             default -> null;

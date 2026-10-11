@@ -5,10 +5,16 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/circuitagent?useUnicode=true&characterEncoding=UTF-8}
     username: ${DB_USERNAME:circuitagent}
     password: ${DB_PASSWORD:}
+    hikari:
+      data-source-properties:
+        rewriteBatchedStatements: true
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate.jdbc.batch_size: 50
+      hibernate.order_inserts: true
   servlet:
     multipart:
       max-file-size: 10MB

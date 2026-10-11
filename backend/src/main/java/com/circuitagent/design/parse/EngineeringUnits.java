@@ -11,7 +11,7 @@ public final class EngineeringUnits {
         Map.entry("u", -6), Map.entry("µ", -6), Map.entry("μ", -6), Map.entry("m", -3),
         Map.entry("k", 3), Map.entry("K", 3), Map.entry("M", 6), Map.entry("G", 9));
     private static final Pattern NUMBER = Pattern.compile("([+]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?)\\s*([pnuµμmkKMG]?)");
-    private static final Pattern RKM = Pattern.compile("([0-9]+)([RkKM])([0-9]+)");
+    private static final Pattern RKM = Pattern.compile("([0-9]+)([pnuµμmkKMGRVA])([0-9]+)");
     private EngineeringUnits() {}
 
     public static AttributeValue normalize(String raw, String unit) {
@@ -24,10 +24,16 @@ public final class EngineeringUnits {
             default -> Pattern.quote(unit);
         };
         value = value.replaceFirst("\\s*" + suffix + "$", "").trim();
+        // Observed Sparrow decimal comma has 1–2 fractional digits; reject ambiguous thousands.
+        if (value.matches("[+]?[0-9]+,[0-9]{1,2}")) value = value.replace(',', '.');
         var rkm = RKM.matcher(value);
         BigDecimal number;
-        if (unit.equals("Ω") && rkm.matches()) {
-            number = new BigDecimal(rkm.group(1) + "." + rkm.group(3)).scaleByPowerOfTen(POWERS.get(rkm.group(2)));
+        if (rkm.matches() && !unit.equals("%")) {
+            String marker = rkm.group(2);
+            boolean unitMarker = marker.equals(unit) || unit.equals("Ω") && marker.equals("R");
+            if (!unitMarker && (!POWERS.containsKey(marker) || marker.equals("R")))
+                throw new IllegalArgumentException("Embedded unit marker does not match " + unit);
+            number = new BigDecimal(rkm.group(1) + "." + rkm.group(3)).scaleByPowerOfTen(unitMarker ? 0 : POWERS.get(marker));
         } else {
             if (unit.equals("Ω") && value.endsWith("R")) value = value.substring(0, value.length() - 1);
             var match = NUMBER.matcher(value);

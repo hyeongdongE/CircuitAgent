@@ -20,8 +20,7 @@ public final class CsvToXlsx {
         try (var parser = CSVFormat.DEFAULT.builder().setDelimiter(';').setIgnoreEmptyLines(false).get().parse(new StringReader(text))) {
             var rows = new ArrayList<List<String>>(); int cells = 0;
             for (var r : parser) {
-                if (++cells > ParserLimits.MAX_CELLS) throw new IllegalArgumentException("CSV cell limit exceeded");
-                var values = r.toList(); cells += values.size() - 1;
+                var values = r.toList(); cells += values.size();
                 if (rows.size() >= ParserLimits.MAX_ROWS || values.size() > ParserLimits.MAX_COLUMNS || cells > ParserLimits.MAX_CELLS)
                     throw new IllegalArgumentException("CSV conversion budget exceeded");
                 rows.add(values);
