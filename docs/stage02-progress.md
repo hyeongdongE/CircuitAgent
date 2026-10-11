@@ -102,3 +102,12 @@
 - 소스 ZIP: `/workspace/CircuitAgent-source.zip` (빌드 캐시/개인 환경 파일 제외).
 - Git 이력 bundle: `/workspace/CircuitAgent.bundle` (main 및 작업 브랜치 포함).
 - QCV 지원 완료 또는 원격 PR 생성 완료를 주장하지 않음.
+
+## GitHub 연결 후속 확인
+
+- 사용자가 비공개 저장소 `https://github.com/hyeongdongE/CircuitAgent.git`를 생성하고 제공함.
+- 해당 URL을 로컬 `origin`으로 연결함. 현재 GitHub 계정 조회는 hyeongdongE로 성공.
+- `gh api repos/hyeongdongE/CircuitAgent`는 404, `git ls-remote origin`은 403 (`Write access to repository not granted`), GitHub Connector의 설치된 저장소 검색은 빈 결과.
+- 원격 브랜치/파일을 읽거나 push할 수 없어 기존 원격 내용을 확인하지 못함. 원격 수정/병합/PR 생성은 수행하지 않음.
+- 다음 단계: GitHub의 ChatGPT/Codex 앱 저장소 접근 설정에 CircuitAgent를 추가하고 현재 연결 권한을 갱신 → 원격 초기 상태 확인 → 기존 내용 보존하면서 브랜치 push 및 PR 생성.
+- 이 후속 변경은 문서/원격 URL 설정만이며 구현 코드는 변경하지 않음. 이전 전체 테스트 27개 PASS 결과 유지, 추가 테스트 미실행.
