@@ -26,3 +26,17 @@ dependencies {
 }
 
 tasks.named('test') { useJUnitPlatform() }
+
+// External sources are deliberately NOT committed; fetch the pinned six files first.
+def qcvFixtureDir = rootProject.file('../.local/qcv-fixtures')
+tasks.register('convertQcvBoms', JavaExec) {
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.circuitagent.design.tools.CsvToXlsx'
+    args qcvFixtureDir.absolutePath
+    inputs.files(['fe', 'ntop', 'fe-ntop'].collect { new File(qcvFixtureDir, it + '.csv') })
+    outputs.files(['fe', 'ntop', 'fe-ntop'].collect { new File(qcvFixtureDir, it + '.xlsx') })
+}
+tasks.named('test') {
+    systemProperty 'qcv.fixture.dir', qcvFixtureDir.absolutePath
+}

@@ -16,5 +16,7 @@ public class ComponentPinEntity {
     @Column(nullable = false, length = 128) String number;
     @Column(columnDefinition = "text") String name;
     @Column(length = 128) String electricalType;
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16) PinDisposition disposition;
+    @JdbcTypeCode(SqlTypes.JSON) @Column(nullable = false, columnDefinition = "json") Map<String, String> sourceMetadata;
     protected ComponentPinEntity() {}
 }

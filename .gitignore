@@ -6,3 +6,6 @@ build/
 node_modules/
 dist/
 *.log
+
+# External Sparrow sources have no explicit redistribution license
+.local/

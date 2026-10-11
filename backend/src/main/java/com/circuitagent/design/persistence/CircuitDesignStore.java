@@ -39,7 +39,7 @@ public class CircuitDesignStore {
         Map<PinKey, ComponentPinEntity> pins = new HashMap<>();
         for (var value : model.pins()) {
             var pin = new ComponentPinEntity(); pin.id = UUID.randomUUID(); pin.component = components.get(value.key().reference());
-            pin.designId = design.id; pin.number = value.key().number(); pin.name = value.name(); pin.electricalType = value.electricalType(); em.persist(pin); pins.put(value.key(), pin);
+            pin.designId = design.id; pin.number = value.key().number(); pin.name = value.name(); pin.electricalType = value.electricalType(); pin.disposition = value.disposition(); pin.sourceMetadata = value.sourceMetadata(); em.persist(pin); pins.put(value.key(), pin);
         }
         Map<String, CircuitNetEntity> nets = new HashMap<>();
         for (var value : model.nets().values()) {
@@ -75,7 +75,7 @@ public class CircuitDesignStore {
             components.put(row.reference, new ComponentInstance(row.reference, row.value, spec.id(), row.rawSources, row.sourcePath, row.assemblyStatus));
         }
         var pins = em.createQuery("select p from ComponentPinEntity p join fetch p.component where p.component.design.id = :id", ComponentPinEntity.class)
-            .setParameter("id", id).getResultList().stream().map(p -> new ComponentPin(key(p), p.name, p.electricalType)).toList();
+            .setParameter("id", id).getResultList().stream().map(p -> new ComponentPin(key(p), p.name, p.electricalType, p.disposition, p.sourceMetadata)).toList();
         var nets = new LinkedHashMap<String, CircuitNet>();
         for (var row : em.createQuery("select n from CircuitNetEntity n where n.design.id = :id", CircuitNetEntity.class).setParameter("id", id).getResultList())
             nets.put(row.netCode, new CircuitNet(row.netCode, row.name, row.sourcePath));

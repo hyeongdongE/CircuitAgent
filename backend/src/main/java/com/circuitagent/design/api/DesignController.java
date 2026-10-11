@@ -16,8 +16,9 @@ import java.util.*;
 @RequestMapping("/api/designs")
 @Validated
 public class DesignController {
-    public record ImportResponse(UUID id, int componentCount, int pinCount, int netCount, List<ImportIssue> issues) {}
-    public record PinView(String number, String name, String electricalType, CircuitNet net) {}
+    public record ImportResponse(UUID id, int componentCount, int pinCount, int netCount, List<ImportIssue> issues, int connectionCount, int terminatedPinCount) {}
+    public record PinView(String number, String name, String electricalType, CircuitNet net,
+                          PinDisposition disposition, Map<String, String> sourceMetadata) {}
     public record ComponentView(String reference, String value, PartSpecification specification, List<PinView> pins,
                                 Map<String, Map<String, String>> rawSources, String sourcePath, AssemblyStatus assemblyStatus) {}
     public record NetView(String id, String name, String sourcePath, List<PinKey> connectedPins, Set<String> components) {}
@@ -32,7 +33,8 @@ public class DesignController {
         @RequestPart MultipartFile bom, @RequestPart MultipartFile netlist) throws IOException {
         var design = imports.importDesign(name, version, file("bom", bom), file("netlist", netlist), netlistFormat);
         return ResponseEntity.created(URI.create("/api/designs/" + design.id()))
-            .body(new ImportResponse(design.id(), design.components().size(), design.pins().size(), design.nets().size(), design.issues()));
+            .body(new ImportResponse(design.id(), design.components().size(), design.pins().size(), design.nets().size(), design.issues(), design.connections().size(),
+                (int)design.pins().stream().filter(p -> p.disposition() == PinDisposition.TERMINATED).count()));
     }
     @GetMapping("/{id}") public CircuitDesign design(@PathVariable UUID id) { return store.load(id); }
     @GetMapping("/{id}/components") public List<ComponentView> components(@PathVariable UUID id) {
@@ -62,7 +64,7 @@ public class DesignController {
     private static ComponentView view(CircuitGraph graph, String ref) {
         var component = graph.getComponent(ref);
         var pins = graph.getComponentPins(ref).stream().sorted(Comparator.comparing(p -> p.key().number()))
-            .map(pin -> new PinView(pin.key().number(), pin.name(), pin.electricalType(), graph.getNetOfPin(ref, pin.key().number()).orElse(null))).toList();
+            .map(pin -> new PinView(pin.key().number(), pin.name(), pin.electricalType(), graph.getNetOfPin(ref, pin.key().number()).orElse(null), pin.disposition(), pin.sourceMetadata())).toList();
         return new ComponentView(ref, component.value(), graph.getComponentSpecification(ref), pins, component.rawSources(), component.sourcePath(), component.assemblyStatus());
     }
     private static NetView netView(CircuitGraph graph, CircuitNet net) {

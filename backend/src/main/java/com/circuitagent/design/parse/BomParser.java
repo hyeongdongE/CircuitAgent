@@ -16,9 +16,9 @@ public class BomParser {
     private static String canonical(String header) {
         String key = header.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
         return switch (key) {
-            case "reference", "references", "ref", "refs", "designator", "designators" -> "reference";
+            case "reference", "references", "ref", "refs", "designator", "designators", "refdes" -> "reference";
             case "value", "designation" -> "value";
-            case "qty", "quantity" -> "quantity";
+            case "qty", "quantity", "qtyonboard" -> "quantity";
             case "mpn", "partnumber", "manufacturerpartnumber" -> "mpn";
             case "manufacturer", "mfr" -> "manufacturer";
             case "type", "componenttype" -> "type";
@@ -28,6 +28,7 @@ public class BomParser {
             case "capacitance" -> "Capacitance";
             case "inductance" -> "Inductance";
             case "tolerance" -> "Tolerance";
+            case "nomount" -> "nomount";
             case "dnp", "dnf", "donotpopulate", "donotfit" -> "dnp";
             default -> header.trim();
         };
@@ -46,7 +47,8 @@ public class BomParser {
         List<ImportIssue> issues = new ArrayList<>();
         for (var row : rows) {
             Map<String, String> fields = new LinkedHashMap<>();
-            row.raw().forEach((k, v) -> fields.put(canonical(k), v));
+            boolean catalogue = catalogueHeaders(row.raw().keySet());
+            row.raw().forEach((k, v) -> fields.put(column(k, catalogue), v));
             String references = clean(fields.get("reference"));
             if (references == null) {
                 issues.add(new ImportIssue(Severity.ERROR, Code.MISSING_REFERENCE, null, row.location(), "Missing Reference"));
@@ -74,10 +76,17 @@ public class BomParser {
                 String type = clean(fields.get("type"));
                 if (type == null) type = inferType(ref);
                 else type = type.toLowerCase(Locale.ROOT);
-                AssemblyStatus placement = assemblyStatus(fields.get("dnp"), ref, row.location(), issues);
+                AssemblyStatus placement = fields.containsKey("nomount")
+                    ? noMount(fields.get("nomount"), ref, row.location(), issues)
+                    : assemblyStatus(fields.get("dnp"), ref, row.location(), issues);
+                if (fields.containsKey("nomount") && clean(fields.get("dnp")) != null
+                    && placement != assemblyStatus(fields.get("dnp"), ref, row.location(), issues)) {
+                    issues.add(new ImportIssue(Severity.ERROR, Code.SPECIFICATION_CONFLICT, ref, row.location(), "NoMount and DNP disagree; placement unspecified"));
+                    placement = AssemblyStatus.UNSPECIFIED;
+                }
                 Map<String, AttributeValue> attributes = new LinkedHashMap<>();
                 for (var entry : fields.entrySet()) {
-                    if (Set.of("reference", "value", "quantity", "manufacturer", "mpn", "type", "Id", "dnp").contains(entry.getKey())) continue;
+                    if (Set.of("reference", "value", "quantity", "manufacturer", "mpn", "type", "Id", "dnp", "nomount").contains(entry.getKey())) continue;
                     if (clean(entry.getValue()) != null) {
                         attributes.put(entry.getKey(), normalize(entry.getKey(), entry.getValue(), ref, row.location(), issues));
                     }
@@ -100,14 +109,17 @@ public class BomParser {
                 String mpn = clean(fields.get("mpn"));
                 var candidate = new PartSpecification(UUID.randomUUID(), manufacturer, mpn, type, attributes);
                 PartSpecification spec = candidate;
-                if (mpn != null) {
-                    var key = List.of(manufacturer == null ? "" : manufacturer, mpn);
+                String cataloguePart = clean(fields.get("Part Number"));
+                if (mpn != null || cataloguePart != null) {
+                    // An EGP catalogue part is not silently invented as a manufacturer MPN.
+                    var key = mpn != null ? List.of("mpn", manufacturer == null ? "" : manufacturer, mpn)
+                        : List.of("catalogue", cataloguePart, fields.getOrDefault("Rev", ""));
                     var variants = byMpn.computeIfAbsent(key, ignored -> new ArrayList<>());
                     var existing = variants.stream().filter(s -> equivalentSpecification(s, candidate)).findFirst();
                     if (existing.isPresent()) spec = existing.get();
                     else {
                         if (!variants.isEmpty()) issues.add(new ImportIssue(Severity.WARNING, Code.SPECIFICATION_CONFLICT, ref, row.location(),
-                            "Same manufacturer/MPN has conflicting source attributes; separate specification retained"));
+                            "Same part identity has conflicting source attributes; separate specification retained"));
                         variants.add(candidate);
                     }
                 }
@@ -118,6 +130,19 @@ public class BomParser {
         return new BomResult(components, specs, issues);
     }
 
+    private static boolean catalogueHeaders(Collection<String> headers) {
+        var normalized = headers.stream().map(h -> h.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "")).toList();
+        return normalized.contains("refdes") && normalized.contains("qtyonboard");
+    }
+    private static String column(String header, boolean catalogue) {
+        return catalogue && header.trim().equalsIgnoreCase("PartNumber") ? "Part Number" : canonical(header);
+    }
+    private static AssemblyStatus noMount(String raw, String ref, String source, List<ImportIssue> issues) {
+        if (raw == null || raw.isBlank()) return AssemblyStatus.FITTED; // observed NoMount flag convention
+        if (raw.trim().equalsIgnoreCase("NM")) return AssemblyStatus.DNP;
+        issues.add(new ImportIssue(Severity.WARNING, Code.PARSE_FAILURE, ref, source, "Unknown NoMount flag; placement unspecified"));
+        return AssemblyStatus.UNSPECIFIED;
+    }
     private static AssemblyStatus assemblyStatus(String raw, String ref, String source, List<ImportIssue> issues) {
         if (clean(raw) == null) return AssemblyStatus.UNSPECIFIED;
         return switch (raw.trim().toLowerCase(Locale.ROOT)) {
@@ -211,7 +236,7 @@ public class BomParser {
         if (cells.stream().noneMatch(c -> canonical(c).equals("reference"))) throw new IllegalArgumentException("BOM Reference column required");
         var seen = new HashSet<String>();
         for (String header : cells) {
-            if (!header.isBlank() && !seen.add(canonical(header))) throw new IllegalArgumentException("Ambiguous duplicate BOM column: " + header);
+            if (!header.isBlank() && !seen.add(column(header, catalogueHeaders(cells)))) throw new IllegalArgumentException("Ambiguous duplicate BOM column: " + header);
         }
         return List.copyOf(cells);
     }

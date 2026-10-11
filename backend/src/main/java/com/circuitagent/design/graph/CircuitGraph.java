@@ -60,7 +60,7 @@ public final class CircuitGraph {
         Objects.requireNonNull(name, "name");
         return getComponentPins(ref).stream().filter(p -> name.equals(p.name())).toList();
     }
-    public enum ConnectionStatus { CONNECTED, UNCONNECTED, AMBIGUOUS, UNRESOLVED, MISSING_PIN }
+    public enum ConnectionStatus { CONNECTED, UNCONNECTED, TERMINATED, AMBIGUOUS, UNRESOLVED, MISSING_PIN }
     public record PinContext(PinKey key, ComponentPin pin, ConnectionStatus status, CircuitNet net,
                              ComponentInstance component, PartSpecification specification, List<ImportIssue> issues) {}
     public PinContext getPinContext(String ref, String number) {
@@ -73,11 +73,15 @@ public final class CircuitGraph {
                 || i.message().startsWith("Pin " + number + " assigned to multiple Nets")));
         boolean inventoryKnown = "complete".equals(component.rawSources().getOrDefault("netlist", Map.of()).get("pinInventory"));
         ConnectionStatus status = pin == null ? ConnectionStatus.MISSING_PIN : ambiguous ? ConnectionStatus.AMBIGUOUS
-            : net != null ? ConnectionStatus.CONNECTED : inventoryKnown ? ConnectionStatus.UNCONNECTED : ConnectionStatus.UNRESOLVED;
+            : net != null ? ConnectionStatus.CONNECTED : pin.disposition() == PinDisposition.TERMINATED ? ConnectionStatus.TERMINATED
+            : pin.disposition() == PinDisposition.UNCONNECTED || inventoryKnown ? ConnectionStatus.UNCONNECTED : ConnectionStatus.UNRESOLVED;
         return new PinContext(key, pin, status, net, component, getComponentSpecification(ref), getComponentIssues(ref));
     }
     public enum EdgeKind { NET, COMPONENT }
-    public record TraversalEdge(PinKey from, PinKey to, EdgeKind kind, String netId) {}
+    public record TraversalEdge(PinKey from, PinKey to, EdgeKind kind, String netId, String sourcePath) {
+        public TraversalEdge(PinKey from, PinKey to, EdgeKind kind, String netId) { this(from, to, kind, netId, null); }
+    }
+    public enum TraversalMode { EXCLUDE_DNP, INCLUDE_DNP_SCHEMATIC }
     public record Neighborhood(Set<PinKey> pins, Set<String> nets, Set<TraversalEdge> edges) {}
     /**
      * Bounded topology exploration. Component crossings require an explicit caller allow-list.
@@ -85,6 +89,10 @@ public final class CircuitGraph {
      * DNP components cannot be crossed; no automatic traversal through ICs or all two-pin parts.
      */
     public Neighborhood explore(PinKey start, Set<String> passThroughReferences, int maxSteps) {
+        return explore(start, passThroughReferences, maxSteps, TraversalMode.EXCLUDE_DNP);
+    }
+    public Neighborhood explore(PinKey start, Set<String> passThroughReferences, int maxSteps, TraversalMode mode) {
+        Objects.requireNonNull(mode, "mode");
         if (maxSteps < 0 || maxSteps > 32) throw new IllegalArgumentException("maxSteps must be between 0 and 32");
         getNetOfPin(start.reference(), start.number()); // validate start; unconnected pins are valid
         passThroughReferences.forEach(this::getComponent);
@@ -103,7 +111,7 @@ public final class CircuitGraph {
             if (netId != null) for (var pin : getConnectedPins(netId))
                 if (!pin.key().equals(visit.pin())) next.add(edge(visit.pin(), pin.key(), EdgeKind.NET, netId));
             String ref = visit.pin().reference();
-            if (passThroughReferences.contains(ref) && getComponent(ref).assemblyStatus() != AssemblyStatus.DNP)
+            if (passThroughReferences.contains(ref) && (mode == TraversalMode.INCLUDE_DNP_SCHEMATIC || getComponent(ref).assemblyStatus() != AssemblyStatus.DNP))
                 for (var pin : getComponentPins(ref)) if (!pin.key().equals(visit.pin()))
                     next.add(edge(visit.pin(), pin.key(), EdgeKind.COMPONENT, null));
             for (var e : next) {
@@ -116,9 +124,11 @@ public final class CircuitGraph {
         }
         return new Neighborhood(Set.copyOf(reached), Set.copyOf(reachedNets), Set.copyOf(edges));
     }
-    private static TraversalEdge edge(PinKey a, PinKey b, EdgeKind kind, String netId) {
+    private TraversalEdge edge(PinKey a, PinKey b, EdgeKind kind, String netId) {
         int order = Comparator.comparing(PinKey::reference).thenComparing(PinKey::number).compare(a, b);
-        return order <= 0 ? new TraversalEdge(a, b, kind, netId) : new TraversalEdge(b, a, kind, netId);
+        String source = kind == EdgeKind.NET ? design.nets().get(netId).sourcePath()
+            : getComponent(a.reference()).rawSources().getOrDefault("provenance", Map.of()).getOrDefault("bomLocation", getComponent(a.reference()).sourcePath());
+        return order <= 0 ? new TraversalEdge(a, b, kind, netId, source) : new TraversalEdge(b, a, kind, netId, source);
     }
 
 }
