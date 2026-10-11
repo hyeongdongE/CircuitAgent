@@ -19,3 +19,8 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 20MB
+
+server:
+  address: 127.0.0.1
+circuitagent:
+  mode: ${CIRCUITAGENT_MODE:local-poc}

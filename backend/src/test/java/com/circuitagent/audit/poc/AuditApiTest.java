@@ -32,6 +32,7 @@ class AuditApiTest extends MySqlIntegrationSupport {
         mvc.perform(post(root).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(input))).andExpect(status().isCreated()).andExpect(jsonPath("$.results[0].status").value("FAIL"));
         mvc.perform(post(root).contentType(MediaType.APPLICATION_JSON).content("{\"schemaVersion\":\"poc-rule-v1\",\"ruleIds\":[\"wrong\"]}")).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("RULE_INPUT_INVALID"));
         mvc.perform(post(root).contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isBadRequest());
+        mvc.perform(post(root).contentType(MediaType.APPLICATION_JSON).content("{\"schemaVersion\":\"poc-rule-v1\",\"ruleIds\":[\"tps54302-c5-nominal\"],\"unknownOperator\":\"GT\"}")).andExpect(status().isBadRequest());
         mvc.perform(post("/api/designs/"+UUID.randomUUID()+"/audits").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(input))).andExpect(status().isNotFound());
     }
 }
