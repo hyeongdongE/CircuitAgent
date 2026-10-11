@@ -36,7 +36,7 @@ class MySqlPersistenceTest extends MySqlIntegrationSupport {
             assertThat(actual.content()).containsExactly(expected.content());
             assertThat(actual.sha256()).isEqualTo(expected.sha256());
         }
-        assertThat(jdbc.queryForObject("select count(*) from information_schema.columns where table_schema = database() and data_type = 'json'", Integer.class)).isEqualTo(4);
+        assertThat(jdbc.queryForObject("select count(*) from information_schema.columns where table_schema = database() and data_type = 'json' and table_name in ('circuit_design','part_specification','component_instance','component_pin')", Integer.class)).isEqualTo(4);
     }
     @Test
     void shiftIssuesAndReusedSpecificationsSurvivePersistence() throws Exception {

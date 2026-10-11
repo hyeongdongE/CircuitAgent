@@ -3,7 +3,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 public record AuditResult(UUID id,String ruleId,String ruleVersion,String reference,AuditStatus status,
-                          BigDecimal measured,AuditRule.Bounds expected,String unit,String reason,
+                          @com.fasterxml.jackson.annotation.JsonFormat(shape=com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING) BigDecimal measured,AuditRule.Bounds expected,String unit,String reason,
                           List<String> missingInputs,AuditEvidence evidence,Instant executedAt) {
     public AuditResult {
         Objects.requireNonNull(id);Objects.requireNonNull(status);Objects.requireNonNull(evidence);Objects.requireNonNull(executedAt);

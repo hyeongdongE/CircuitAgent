@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.*;
 class SnapshotContractTest {
     static CircuitGraph real() throws Exception {
         var dir=Path.of(System.getProperty("qcv.fixture.dir"));
-        return new CircuitGraph(new CircuitAssembler().assemble("FE integration","R3",
+        return new CircuitGraph(new CircuitAssembler().assemble("FE integration "+java.util.UUID.randomUUID(),"R3",
             new BomParser().parse(Files.readAllBytes(dir.resolve("fe.xlsx")),"BOM.xlsx"),
             new QcvNetlistParser().parse(Files.readAllBytes(dir.resolve("fe.qcv")),"Netlist.qcv")));
     }

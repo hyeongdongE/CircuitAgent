@@ -37,7 +37,8 @@ public class DeterministicRuleChecker {
                         yield work.result(AuditStatus.UNKNOWN,null,"No unambiguous populated connection can be established; TERM is not automatically an error");
                     }
                     var neighbors=graph.getComponentsOnNet(p.net().id()).stream().filter(c->!c.reference().equals(target.reference())).toList();
-                    for(var c:neighbors)work.component(c.reference());
+                    work.calculation.put("sameNetNeighborReferences",neighbors.stream().map(ComponentInstance::reference).sorted().collect(java.util.stream.Collectors.joining(",")));
+                    if(rule.type()==AuditRule.Type.PIN_CONNECTED)for(var c:neighbors)work.component(c.reference());
                     if(rule.type()==AuditRule.Type.PIN_CONNECTED && neighbors.stream().noneMatch(c->c.assemblyStatus()==AssemblyStatus.FITTED))work.missing.add("No known fitted neighbor on target net (DNP is logical topology only)");
                     var status=rule.type()==AuditRule.Type.NET_MATCH && !rule.expectedNet().equals(p.net().name())?AuditStatus.FAIL:AuditStatus.PASS;
                     yield work.result(status,null,"Explicit net/topology check; no actual pin voltage or conducting state inferred");
