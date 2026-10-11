@@ -23,3 +23,12 @@ Netlist rawSources의 pinInventory는 library에서 알려진 완전한 핀 목�
 파생 메타데이터다. MPN 사양의 numeric 속성은 SI 의미로 공유하므로 사양 AttributeValue.raw는
 첫 사양 원문이며 개별 부품 원문은 해당 ComponentInstance.rawSources.bom을 사용한다.
 공통 조회/연결 상태 및 탐색의 의미는 [Stage 03 계약](stage03-interface.md)을 참고한다.
+
+공개 QCV 확장: ComponentPin의 disposition(UNSPECIFIED/UNCONNECTED/TERMINATED)과
+sourceMetadata는 연결정보와 독립된 선언/근거입니다. `(by TERM)` PIN은 실제 Pin을 보존하되
+PinConnection/가짜 Net을 만들지 않습니다. NET/PIN에 등장한 모든 부품을 유지하므로 BOM
+445개를 매칭한 FE 모델에는 PIN-only PCB8개까지 453개 Component가 있습니다.
+QCV에는 library 전체 핀/핀 기능/Value가 없어 임의로 채우지 않습니다.
+카탈로그 BOM의 PartNumber는 내부 Part Number 속성 및 Rev 기반 사양 재사용 키이고,
+제조사 MPN은 별도 명시 데이터가 없으면 null입니다. NoMount는 Component의 실장 상태입니다.
+V3는 핀 선언과 source JSON을 저장하고 기존 V1/V2 모델/관계는 유지합니다.

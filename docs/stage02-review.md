@@ -1,3 +1,5 @@
+> 이전 HEAD 10a3636 기준 리뷰 기록입니다. 현재 공개 PADS QCV 구현/검증은 [PoC 결과](qcv-poc-validation.md)를 참고하세요.
+
 # PR #1 Stage 02 리뷰 및 Stage 03 연동 준비
 
 기준: PR #1 OPEN, base `main`, head `feat/stage02-design-modeling`;

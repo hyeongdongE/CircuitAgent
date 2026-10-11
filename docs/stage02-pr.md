@@ -1,19 +1,26 @@
-BOM과 KiCad Netlist를 공통 Component/Pin/Net 모델로 통합하고 부품 사양과 연결을 함께 조회할 수 있게 합니다. 실제 공개 5V 전원 회로 및 Shift Indicator 원본을 커밋/체크섬으로 고정해 CSV/XLSX/XLS, 구조적 S-expression 파싱, MySQL 저장·복원, multipart REST API를 검증했습니다.
+공개 PADS QCV와 대응 BOM XLSX를 기존 Stage 02 파이프라인에 연결합니다. Sparrow 3개 Revision R3 설계를 Java로 파싱하고 Component/Pin/Net의 출처·미실장·종단 상태를 유지한 채 실제 MySQL 저장·복원과 REST 업로드/조회를 검증합니다. 기존 KiCad 및 CSV/XLSX/XLS 계약을 유지합니다.
 
-PR #1의 기존 HEAD `85b5b9d410fcb1df11c77ce8806dfe8eacd40586`에서 기존 27개 테스트를 재실행한 뒤 리뷰 결과에 따라 필요한 부분을 보완했습니다.
+- PR #1 최신 HEAD를 `10a3636e3988a9ba8bae4bcc1e3c2cc040348ff2`로 확인하고 기존 51개 테스트/JAR를 먼저 검증했습니다.
+- 독립 Java QCV adapter: 관측된 NET/PIN 문법, UTF-8, 원문 행, 중복·모호 연결 검증. 별도 PIN과 `(by TERM)`을 Net 연결과 구분합니다.
+- Commons CSV/POI 변환은 세미콜론 원본의 모든 문자열·공백·빈 셀을 XLSX에 보존하고 다시 열어 비교합니다. RefDes/QtyOnBoard/NoMount, 내부 PartNumber+Rev, 2n2/3V6/2,5를 지원합니다. 누락 값/MPN을 추측하지 않습니다.
+- 기본 DNP 제외 탐색을 유지하고 명시적인 INCLUDE_DNP_SCHEMATIC 모드와 근거 edge를 추가합니다. 부품 경유가 Net 병합/도통 판정은 아닙니다.
+- Flyway V3는 pin disposition/source JSON을 additive 추가합니다. 모델/원본 트랜잭션과 FK/버전 격리를 유지하며 Hibernate/JDBC batch 저장을 적용했습니다.
+- 실제 FE: BOM/매칭445, NET refs445/QCV 전체453(PCB1~8 포함), Net335, 연결1500, 별도 PIN143 중TERM135, NoMount51. N-Top: BOM296/Net233/NM67. FE N-Top: BOM161/Net193/NM37. 세 보드 BOM ref 전체 매칭.
+- 원본6파일 checksum/pinned commit과 다운로드 절차를 기록합니다. 명시적 라이선스가 없어 원본/파생 XLSX/참고 Python은 `.local/`에서만 사용하고 PR에 재배포하지 않습니다. 외부 코드 복제/새 Python 서비스/새 라이브러리 없음.
 
-- DNP를 인스턴스 실장 상태로 분리하고, 동일 MPN/동등한 SI 값은 사양을 재사용합니다. 누락은 null/미등록으로 유지하고 실제 속성 충돌은 ImportIssue로 남깁니다.
-- 같은 code/name의 중복 Net 선언은 연결을 보존해 병합하고 이름 충돌은 거절합니다. library alias·계층 source·미연결 핀을 보존하며 부품 양쪽 Net은 합치지 않습니다.
-- Stage 03용 design-scoped snapshot, 핀 이름 조회, 연결 상태/이슈, 명시적 경유 부품 목록을 사용하는 제한 탐색을 제공합니다. Rule 해석/FB 저항쌍/출력 전압 계산은 구현하지 않습니다.
-- Flyway V1을 유지하고 V2에 실장 상태, 전체 설계-specification 소속, 교차 설계 Pin/Net 연결을 막는 복합 FK를 추가합니다.
-- 파일 형식/확장자, 입력 크기·셀·token·숫자 범위 및 XLSX 압축 해제 크기를 검사하고 파싱 실패를 400으로 처리합니다. 기존 REST route/필드는 유지하고 assemblyStatus 및 pin-context 조회만 추가합니다.
+재현(Java21 JDK와 Docker):
 
-검증: Java 21, `cd backend && ./gradlew clean test bootJar --no-daemon` 성공. **51개 PASS, failure/error/skipped 0** (기존 27 + 추가 24). Docker/Testcontainers 실제 MySQL 8.0.43로 roundtrip, 롤백, 설계별 값 격리, 교차 설계 FK 거절, 데이터가 있는 V1→V2 마이그레이션 및 API를 검증했습니다. JAR 빌드 성공. 공개 Fixture/V1 schema 원문 변경 없음.
+```sh
+python3 scripts/fetch-qcv-fixtures.py
+cd backend
+./gradlew convertQcvBoms
+./gradlew clean test bootJar
+```
 
-5V: BOM/Netlist/Reference 매칭 12, R1=1000Ω, U1=L7805, 25 pins/6 nets/25 connections. Shift: BOM 27개 전부 Netlist에 매칭, Netlist 31개와 추가 H1~H4 이슈 확인.
+검증: `clean test bootJar` 성공, **80 PASS (기존51 + 추가29), failure/error/skipped0**, 실제 MySQL8.0.43/JAR 성공. 최종 FE 3회 중앙값(ms)은 BOM64.890/QCV18.740/통합4.577/Graph1.887/MySQL1560.244/API379.926입니다. 전체 수량 및 성능은 [PoC 검증](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/qcv-poc-validation.md)과 [테스트 집계](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/qcv-poc-test-results.json)에 기록합니다.
 
-미해결: **실제 QCV 샘플/명세가 없어 QCV 파서는 미구현(422)**. 삼성 QCV 성공 파싱 및 실제 삼성 회로 Audit 테스트는 미실행입니다. API에는 아직 인증/설계별 사용자 권한 검사가 없으며 원문/source 정보가 포함됩니다. 사내 SSO/접근 정책 확정 전에는 신뢰된 PoC 환경에서만 사용해야 합니다. 기존 V1 실장 상태는 UNSPECIFIED로 시작하며 필요한 과거 설계는 원본을 재import/검증해 변환해야 합니다. 외부 Stage 03 DTO 호환과 대규모 성능도 실제 입력/소비 코드 확보 후 검증해야 합니다.
+[Stage 03 계약](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/stage03-interface.md) · [단계 기록](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/stage02-progress.md)
 
-[순차 리뷰·문제 분류 및 조치](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/stage02-review.md) · [테스트 집계](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/stage02-review-test-results.json) · [Stage 03 조회 계약](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/stage03-interface.md) · [QCV 입력 요구사항](https://github.com/hyeongdongE/CircuitAgent/blob/feat/stage02-design-modeling/docs/stage02-qcv.md)
+한계: 공개 PADS dialect의 검증이며 삼성 QCV 전체 변형 호환은 미검증입니다. 계층별 반복 local Ref/Net scope, 다른 인코딩·핀 alias·줄바꿈 레코드는 실제 삼성 샘플이 필요합니다. 파일 두 개가 같은 revision인지 자동 증명할 수 없습니다. API 인증/설계 소유권/원문 정책이 없어 신뢰된 PoC 환경용이며 공개 배포하지 않았습니다. React 프로젝트가 없어 API 검증·예시를 제공했습니다. Stage 01/03 검증 엔진/04는 변경하지 않습니다.
 
-작업 브랜치 `feat/stage02-design-modeling`, 대상 `main`. 기본 브랜치 직접 병합 없음. Stage 01/03 검증 엔진/04/React 기능은 변경하지 않았습니다.
+작업 브랜치 `feat/stage02-design-modeling`, base `main`. 기존 PR을 업데이트하며 기본 브랜치에 직접 병합하지 않습니다.

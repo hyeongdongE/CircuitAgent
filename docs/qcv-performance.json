@@ -1,0 +1,86 @@
+{
+  "board": "FE R3: BOM445 + PIN-only8, nets335, connections1500",
+  "java": "21.0.12.1",
+  "os": "Linux amd64",
+  "availableProcessors": 4,
+  "maxHeapBytes": 536870912,
+  "database": "Docker/Testcontainers MySQL 8.0.43",
+  "method": "3 sequential JVM samples, nanoTime. File reads and container/Spring startup excluded. Persistence includes both raw files. MockMvc API retrieval includes full DB load, graph/view/JSON serialization; excludes network sockets. No SLA assertion.",
+  "samples": [
+    {
+      "bomParsingMs": 64.890165,
+      "qcvParsingMs": 13.022868,
+      "integrationMs": 4.576506,
+      "graphConstructionMs": 1.886804,
+      "mysqlPersistenceMs": 2434.990441,
+      "apiRetrievalMs": 379.925874
+    },
+    {
+      "bomParsingMs": 131.638571,
+      "qcvParsingMs": 127.306454,
+      "integrationMs": 4.761599,
+      "graphConstructionMs": 3.695508,
+      "mysqlPersistenceMs": 1409.384087,
+      "apiRetrievalMs": 332.56558
+    },
+    {
+      "bomParsingMs": 48.057278,
+      "qcvParsingMs": 18.740111,
+      "integrationMs": 4.351205,
+      "graphConstructionMs": 1.861875,
+      "mysqlPersistenceMs": 1560.244298,
+      "apiRetrievalMs": 501.689009
+    }
+  ],
+  "medianMs": {
+    "bomParsingMs": 64.890165,
+    "qcvParsingMs": 18.740111,
+    "integrationMs": 4.576506,
+    "graphConstructionMs": 1.886804,
+    "mysqlPersistenceMs": 1560.244298,
+    "apiRetrievalMs": 379.925874
+  },
+  "unbatchedBaseline": {
+    "board": "FE R3: BOM445 + PIN-only8, nets335, connections1500",
+    "java": "21.0.12.1",
+    "os": "Linux amd64",
+    "availableProcessors": 4,
+    "maxHeapBytes": 536870912,
+    "database": "Docker/Testcontainers MySQL 8.0.43",
+    "method": "3 sequential JVM samples, nanoTime. File reads and container/Spring startup excluded. Persistence includes both raw files. MockMvc API retrieval includes full DB load, graph/view/JSON serialization; excludes network sockets. No SLA assertion.",
+    "samples": [
+      {
+        "bomParsingMs": 689.709338,
+        "qcvParsingMs": 129.367813,
+        "integrationMs": 21.751478,
+        "graphConstructionMs": 7.334327,
+        "mysqlPersistenceMs": 13754.278188,
+        "apiRetrievalMs": 1356.268489
+      },
+      {
+        "bomParsingMs": 108.124452,
+        "qcvParsingMs": 25.968541,
+        "integrationMs": 2.975654,
+        "graphConstructionMs": 1.464751,
+        "mysqlPersistenceMs": 14869.17806,
+        "apiRetrievalMs": 599.380735
+      },
+      {
+        "bomParsingMs": 222.816888,
+        "qcvParsingMs": 12.778733,
+        "integrationMs": 2.500588,
+        "graphConstructionMs": 1.114271,
+        "mysqlPersistenceMs": 13809.303328,
+        "apiRetrievalMs": 417.311764
+      }
+    ],
+    "medianMs": {
+      "bomParsingMs": 222.816888,
+      "qcvParsingMs": 25.968541,
+      "integrationMs": 2.975654,
+      "graphConstructionMs": 1.464751,
+      "mysqlPersistenceMs": 13809.303328,
+      "apiRetrievalMs": 599.380735
+    }
+  }
+}

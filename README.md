@@ -1,14 +1,14 @@
 # CircuitAgent
 
 회로 검증 자동화 프로젝트의 Stage 02 (Design Modeling) 백엔드 PoC입니다.
-실제 공개된 5V 전원 회로와 Shift Indicator의 BOM/Netlist로 검증합니다.
+공개 KiCad 회로와 Sparrow 3개 보드의 실제 PADS QCV + BOM XLSX로 검증합니다.
 
 - Java 21 **JDK**, Spring Boot 3.5.16, Gradle 8.14.6, MySQL 8
 - BOM: UTF-8 CSV, XLSX, XLS / 단위 정규화, 원본 및 ImportIssue 보존
-- Netlist: KiCad S-expression / Component·Pin·Net 그래프 및 조회
+- Netlist: KiCad S-expression 및 공개 PADS QCV / Component·Pin·Net 그래프 및 조회
 - MySQL: JPA, Flyway, JSON 속성, 원본 파일·체크섬, 트랜잭션 저장·복원
 - REST: 파일 업로드 및 설계/부품/핀/Net/Issue 조회
-- QCV: **실제 샘플/명세가 없어 Parser 미구현**, 명시적 422 거절
+- QCV: **공개 Sparrow PADS NET/PIN 문법 지원**; 삼성 내부 변형은 미검증
 - React 화면과 Stage 01/03/04는 현재 구현 범위 밖입니다.
 
 ## 구조
@@ -35,8 +35,10 @@ MySQL 8.0.43을 실행하며 Docker가 없으면 실패합니다. 실제 DB 테�
 대체하거나 자동 건너뛰지 않습니다.
 
 ```sh
+python3 scripts/fetch-qcv-fixtures.py
 cd backend
-./gradlew clean test
+./gradlew convertQcvBoms
+./gradlew clean test bootJar
 ```
 
 Docker 없이 파서/모델/그래프만 검증하려면 범위를 명시합니다.
@@ -83,3 +85,5 @@ MySQL 계정에는 `circuitagent` DB에 대한 테이블 생성/조회/수정 �
 
 현재는 신뢰된 PoC 환경용입니다. 인증·설계별 사용자 접근 통제가 없으므로
 사내 SSO/권한 및 원문 열람 정책 없이 실제 삼성 회로 데이터를 외부에 배포하지 마세요.
+
+[공개 QCV PoC 검증·출처·재현 방법](docs/qcv-poc-validation.md). 외부 원본/파생 XLSX는 라이선스가 명확하지 않아 커밋하지 않습니다. 전체 테스트 전 다운로드와 변환이 필요하며, 누락 시 테스트가 실패합니다.

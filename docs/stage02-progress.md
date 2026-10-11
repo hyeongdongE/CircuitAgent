@@ -1,5 +1,7 @@
 # Stage 02 진행 기록
 
+이 문서는 초기 구현/이전 리뷰를 보존한 누적 기록입니다. 현재 상태는 아래 **공개 PADS QCV PoC** STEP 0~12와 [최종 검증](qcv-poc-validation.md)을 참고하세요. 이전의 QCV 미지원 설명은 해당 시점의 기록입니다.
+
 ## STEP 0 — 완료
 
 - 배경: 기존 저장소가 없음을 사용자에게 확인하고 새 프로젝트 생성 권한을 받음.
@@ -141,3 +143,113 @@ DNP/사양 재사용/중복 Net/입력 제한/Stage 03 snapshot·pin 상태·탐
 리뷰 STEP 9: 구현 `99c334c`, 테스트 `f7d376e`를 기존 feature 브랜치에 push했고
 PR #1 설명/제목을 최종 결과로 갱신했다(REST 확인 OPEN/main/기존 branch).
 리뷰 문서와 집계도 같은 브랜치의 문서 commit으로 반영한다. 기본 브랜치 병합 없음.
+
+## 공개 PADS QCV 실무형 PoC (2026-10-11)
+
+### STEP 0 — 완료
+- 확인: PR #1 OPEN, base main, 현재 HEAD 10a3636e3988a9ba8bae4bcc1e3c2cc040348ff2; local/remote 동일, 변경 없음. AGENTS/React package.json 없음. Java 21/Boot 3.5.16, 기존 NetlistParser/QCV stub/Common IR, BOM/graph/JPA V1·V2/API/Stage 03 계약 확인.
+- 검증: `cd backend && ./gradlew clean test bootJar --no-daemon`: 51 PASS, failure/error/skipped 0, 실제 MySQL 8.0.43, JAR 성공.
+- 확장: 기존 QcvNetlistParser 구현, 핀의 종단/출처 정보를 additive 확장. 기존 Java 서비스 유지.
+- 다음: STEP 1 라이선스·고정 원본 확보/POI Excel 변환.
+
+### STEP 1 — 완료
+- 라이선스: upstream license=null, LICENSE/COPYING 없음, root README 404. 원본 및 파생 XLSX는 `.local/`에만 보관; 재배포하지 않음. 참고 외부 코드 복제 없음.
+- 출처/무결성: upstream commit 7a9de5b64c6b22502502700123ea00853dd38342, 6개 파일 path/bytes/SHA-256은 scripts/qcv-fixtures.json. `python3 scripts/fetch-qcv-fixtures.py` 재다운로드/검증 성공.
+- 변환: Java CsvToXlsx(Commons CSV/POI), 문자열·공백·빈 셀 보존, XLSX 재열기 후 모든 셀 검증. 세 CSV 모두 UTF-8/세미콜론/8컬럼, FE 69/NTOP 55/FE-NTOP 21 데이터 행.
+- 테스트: `./gradlew convertQcvBoms test --tests '*QcvConversionTest'`: 2 PASS, XLSX 70/56/22행(header 포함) 셀별 일치.
+- 다음: STEP 2 원문 구조 검증 및 문법 확정.
+
+### STEP 2 — 완료
+- `QcvSourceStructureTest`: 1 PASS. 원문은 UTF-8, 한 행에 NET/PIN, 작은따옴표 label, 공백 구분 terminal, # section comment. COMP 선언 없음. 세 원본에 반복 Net/중복 연결/연결-PIN 중복 없음.
+- NET는 전기 연결, PIN의 (by TERM)은 명시적 종단, 일반 PIN은 별도 미연결 선언. PIN label을 Net으로 생성하지 않음.
+- FE: NET component 445, PIN-only PCB1~PCB8을 보존하면 전체 453; NET 연결 1500, 별도 PIN 143=TERM135+plain8. NTop 전체304/NET292/BOM296, FE-NTop 전체169/NET161/BOM161. 참고 수치와 의미 차이 명시.
+- 지원: 관측된 NET/PIN/#/빈 줄, 정확한 quoted label, validated terminal suffix와 마지막 구분자; Ref 특수문자/계층 경로 원문 유지. UTF-8 및 행번호.
+- 미지원: COMP/다른 exporter 문법, 줄바꿈된 record, label quote escape, hyphen 포함 pin number의 모호한 분해. 알 수 없는 문법은 거절. 삼성 호환 보장 아님.
+- 다음: STEP 3 Java adapter 및 pin 종단/출처 확장.
+
+### STEP 3 — 완료
+- 독립 Java QcvNetlistParser 구현: NET/PIN 분리, strict UTF-8, 행별 검증, 중복 Net 병합/Pin dedup/모호 연결 제외, 행·token budget, 원문 label/terminal/행 위치 보존. Net ID는 label SHA-256, Net 이름을 전압으로 해석하지 않음.
+- ComponentPin에 disposition/sourceMetadata additive 확장, 기존 3인자 생성자 유지. TERM은 ImportIssue 오류가 아님.
+- `./gradlew test --tests '*QcvParserTest' --tests '*NetlistParserTest'`: 9 PASS. FE 335 nets/1500 connections/143 separate PIN(135 TERM), 실제 U16_EN/U16_FB/VDD/GND node 목록 비교. KiCad 유지, 잘못된 문법·인코딩·중복 테스트 PASS.
+- 기존 empty QCV stub 테스트는 구현 후 빈 파일 거절 테스트로 갱신(테스트 삭제 아님).
+- 다음: STEP 4 XLSX BOM 통합.
+
+### STEP 4 — 완료
+- RefDes/QtyOnBoard/NoMount 양식 지원. NoMount NM=DNP/빈 flag=FITTED; 기존 DNP 빈 셀=UNSPECIFIED 계약 유지. Rev/Voltage/Part Name 원문·동적 속성 보존. PartNumber는 해당 카탈로그 양식에서 내부 Part Number 속성/재사용 키, MPN은 임의 생성하지 않음.
+- 실제 FE BOM445/NoMount51 모두 매칭, PIN-only PCB8개 별도 보존, 통합 전체453. R107=140000Ω/R83=56000Ω, U16 내부PN/PartName/빈 Value 원문 그대로.
+- `test --tests '*QcvIntegrationTest' --tests '*BomParserTest' --tests '*ReviewRegressionTest'`: 25 PASS. 기존 그룹/단위/0/누락/DNP 및 MPN 재사용 유지.
+- 다음: STEP 5 실제 QCV topology/원문 근거 및 명시적 NoMount 탐색 모드.
+
+### STEP 5 — 완료
+- 실제 U16-5→U16_EN→R107-2/R83-2→다른 pin의 VDD/GND 조회 및 BOM 사양 확인. 335 Net 유지; 부품 경유 edge는 Net 병합/도통 주장 아님.
+- 기존 explore 기본은 DNP 제외 유지. INCLUDE_DNP_SCHEMATIC을 명시하면 미실장 부품의 원문 논리 topology 경유를 조회. R107/R83가 NM이라는 사실을 감추지 않음. Edge에 원본 Net 행/BOM 행 sourcePath 추가, 상세 pin sourceMetadata 조회 가능.
+- TERMINATED/UNCONNECTED/UNKNOWN을 구분; PIN label로 가짜 Net/핀 기능을 만들지 않음.
+- `test --tests '*QcvGraphTest' --tests '*CircuitGraphTest' --tests '*ReviewRegressionTest'`: 22 PASS.
+- 다음: STEP 6 실제 MySQL roundtrip/source/disposition V3 migration.
+
+### STEP 6 — 완료
+- V3 additive migration: PinDisposition 및 QCV sourceMetadata JSON. V1/V2 변경 없음, 기존 핀은 UNSPECIFIED/빈 metadata로 보존. 새 모델의 전체 Pin/연결/NoMount/원문/이슈 보존.
+- `test --tests '*QcvPersistenceTest' --tests '*MySqlPersistenceTest' --tests '*ReviewMySqlTest' --tests '*MigrationUpgradeTest'`: 실제 MySQL 8.0.43의 9 tests PASS. FE 전체 모델 recursive comparison, XLSX/QCV 원본 바이트, 453 components/335 nets/1643 inventory/1500 connections, TERM135·출처 roundtrip. 큰 import late constraint 실패 롤백 및 재시도/버전 격리 PASS.
+- 기존 schema JSON 컬럼 기대값을 V3의 4개로 갱신. FK/격리/기존 KiCad roundtrip/데이터가 있는 V1 upgrade 계속 PASS.
+- 다음: STEP 7 실제 XLSX+QCV 업로드 및 기존 REST 계약 검증.
+
+### STEP 7 — 완료
+- 기존 multipart/import/component/pin/net/issues route 재사용; XLSX+QCV 자동 adapter 선택 및 실제 MySQL 저장. PinView disposition/sourceMetadata, ImportResponse connectionCount/terminatedPinCount additive.
+- `test --tests '*QcvApiTest' --tests '*DesignApiTest'`: 10 PASS. 실제 파일 bytes 업로드 201(453/1643/335/1500/TERM135), U16 PN/빈 Value, U16_EN/R107/R83, NM, TERM135·원문 행 조회, 재업로드409, invalid QCV400, 기존 KiCad 요청 유지.
+- 이전 qcv 미지원422 테스트는 실제 구현 이후 invalid syntax400로 갱신(기존51 test 유지). React 앱 없음: 새 frontend 생성/공개 배포 없이 API 검증/예시 제공.
+- 다음: STEP 8 다른 두 실제 보드 회귀/roundtrip.
+
+### STEP 8 — 완료
+- 같은 CSV→XLSX 기능으로 FE/NTop/FE-NTop 모든 셀 재검증, 공개 원본 Net 일부의 전체 Pin 목록 직접 비교, NoMount/기구 부품 및 전체 Source/연결 roundtrip.
+- `test --tests '*QcvBoardRegressionTest' --tests '*NetlistParserTest'`: 8 PASS(보드별 parameterized 3 + KiCad 5), 실제 MySQL. BOM445/296/161, Net335/233/193, 연결1500/972/794, NM51/67/37.
+- 전체 QCV refs는453/304/169; 세 보드 모두 BOM ref 전체 매칭 및 PIN-only PCB8 보존. NTop NET에 없는 M1~M4도 PIN에 있어 유지.
+- 다음: STEP 9 발견된 embedded SI/소수 comma 단위 보완 및 오류/성능 검증.
+
+### STEP 9 — 초기 실패 및 수정
+- 원문에서 발견한 2n2/3V6/2,5 표기 추가 정규화; catalogue Voltage를 임의 Rating으로 해석하지 않고 Voltage 속성으로 유지.
+- 초기 오류/성능 집중 테스트 34개 중33 PASS/1 FAIL: normalized attribute.raw가 원본 Value 끝 공백을 trim함. BOM rawSources는 보존돼 있었으나 attribute.raw도 원본 셀 문자열로 수정.
+- 원본6파일 checksum, 중복/수량/빈 MPN·Value/NoMount/Zero, 특수 Net/계층 Ref, 충돌 TERM, BOM/QCV mismatches, PIN-only, 5000개 synthetic부품·10000연결 및 탐색 budget 테스트 추가. 생성 stress 입력은 보조 데이터이며 실제 공개 검증과 구분.
+- 첫 3회 성능 실측: FE DB 저장13.75~14.87초가 병목. no-SLA, 측정환경/각단계 전체 값 local performance.json. 다음 단계에서 기존 Hibernate batching 검토.
+- 재검증: `test --tests '*QcvRobustnessTest' --tests '*BomParserTest' --tests '*ReviewRegressionTest'`: 33 PASS/failure0/skip0(XML 확인). 원본 normalized.raw 끝 공백 보존 수정 검증.
+- 다음: STEP 10 기존 라이브러리/배치 저장 및 코드 품질 확인.
+
+### STEP 10 — 완료
+- 기존 POI/Commons CSV/JPA/Flyway/JUnit/Testcontainers 재사용, Map/Set 탐색 유지. 새 의존성·JGraphT·Python service 없음.
+- 고정 upstream parse_qcv_review.py는 검토만 수행: TERM-only set/간단 CSV split/제한 Ref regex/ERC 확인. 라이선스 불명확해 코드 복제/실행 service 없이 독립 Java adapter 유지.
+- CSV 변환 budget 계산 단순화. 실제 저장 병목에 Hibernate batch50/order_inserts, MySQL rewriteBatchedStatements 설정 적용; schema/트랜잭션/API 계약 변경 없음.
+- `test --tests '*QcvPerformanceTest' --tests '*QcvPersistenceTest' --tests '*QcvApiTest' --tests '*MigrationUpgradeTest' --tests '*QcvConversionTest'`: 8 PASS/실패0/skip0, BUILD SUCCESSFUL 4m38s. 실제 FK/rollback/전체복원/API/V1upgrade/변환/3회 성능 검증.
+- 다음: STEP 11 `clean test bootJar` 전체 회귀.
+
+### STEP 11 — 완료
+- `cd backend && ./gradlew clean test bootJar --no-daemon`: BUILD SUCCESSFUL 3m59s, 8 tasks executed.
+- JUnit XML 21 suites/80 tests, 기존51 + 신규29, PASS80/failure0/error0/skipped0. actual MySQL8.0.43. 기존51은 삭제 없이 QCV stub/JSON migration의 변경된 기대값 3곳 갱신.
+- 세 실제 보드의 XLSX/BOM/QCV/graph/MySQL 전체 복원/API와 기존 KiCad, FK·롤백·설계 격리·V1upgrade/잘못된 입력/ImportIssue 검증 포함.
+- 실제 FE issues80=MISSING_VALUE72+NETLIST_ONLY_COMPONENT8, NTop93=85+8, FE-NTop129=121+8. INVALID_UNIT0. 이슈는 원문 빈 값/PCB 추가 부품을 보존한 경고이며 단위 오류 수정 후 수치.
+- 최종 3회 중앙값(ms): BOM64.890/QCV18.740/통합4.577/Graph1.887/MySQL1560.244/API379.926. 환경/개별 sample/비배치 baseline은 docs/qcv-performance.json. 컨테이너 초기화/파일 read 제외; API는 MockMvc로 전체DB복원/JSON까지, network latency 제외. SLA 아님.
+- 미실행: 실제 삼성 QCV(미제공), React/browser UI(프로젝트 없음), 인증/운영 배포. 공개 QCV PoC의 필수 DB/API 테스트는 skip 없음.
+- 다음: STEP 12 문서/기존 PR 업데이트.
+
+### STEP 12 — 완료
+- 문서: stage02-progress.md, stage03-interface.md, qcv-poc-validation.md, qcv-poc-test-results.json, qcv-performance.json 및 README/model/API/QCV/PR 설명 갱신. 이전 리뷰 기록 보존.
+- source6파일 및 이번 변환 XLSX SHA/bytes, 보드별 수치·issue·실행 XML suite 집계·성능 실제 sample·지원/미지원 범위·재현 명령 기록.
+- 기존 feat/stage02-design-modeling 브랜치에서 core/parser, raw·batch 수정, real source 회귀 테스트, 문서별 커밋. 기본 브랜치 병합 없음. PR #1에 동일 브랜치 후속 변경 반영.
+- 문서/라이선스 검증: git diff --check; Git tracked 목록에 외부 Sparrow CSV/QCV/XLSX 및 참고 Python 없음. 기존 KiCad fixtures는 유지. React/Stage01/03 engine/04 코드 변경 없음.
+- 미해결/다음: 실제 삼성 QCV/EDA버전/계층 scope·alias 샘플 확보 후 adapter 검증; 사내 인증/설계 권한/민감 원문 정책; Stage03 담당자와 pin-function/MPN mapping 및 snapshot 계약 통합.
+
+### 변경 파일 위치 요약
+
+| 단계 | 주요 변경 파일 |
+| --- | --- |
+| 0 | 기존 코드/PR 확인, baseline 실행; docs/stage02-progress.md |
+| 1 | scripts/fetch-qcv-fixtures.py, scripts/qcv-fixtures.json, tools/CsvToXlsx.java, build.gradle, .gitignore, QcvConversionTest |
+| 2 | QcvSourceStructureTest, qcv-poc-validation.md |
+| 3 | parse/QcvNetlistParser.java, model/ComponentPin.java·PinDisposition.java·ImportIssue.java, QcvParserTest |
+| 4 | parse/BomParser.java, QcvIntegrationTest |
+| 5 | graph/CircuitGraph.java, QcvGraphTest |
+| 6 | persistence/ComponentPinEntity.java·CircuitDesignStore.java, V3 migration, QcvPersistenceTest |
+| 7 | api/DesignController.java, QcvApiTest, 기존 API 기대값 |
+| 8 | QcvBoardRegressionTest |
+| 9 | parse/EngineeringUnits.java·BomParser.java, QcvRobustnessTest·QcvPerformanceTest |
+| 10 | application.yml, CsvToXlsx budget 정리 |
+| 11 | clean test bootJar 실행 결과, qcv-poc-test-results.json·qcv-performance.json |
+| 12 | README, docs/stage02-{api,model,qcv,pr,progress,review}.md, stage03-interface.md, qcv-poc-validation.md |

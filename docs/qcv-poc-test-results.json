@@ -1,0 +1,277 @@
+{
+  "baselineHead": "10a3636e3988a9ba8bae4bcc1e3c2cc040348ff2",
+  "command": "./gradlew clean test bootJar",
+  "suites": [
+    {
+      "name": "com.circuitagent.ApplicationBootstrapTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.894"
+    },
+    {
+      "name": "com.circuitagent.FixtureIntegrityTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.176"
+    },
+    {
+      "name": "com.circuitagent.design.BomParserTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.909"
+    },
+    {
+      "name": "com.circuitagent.design.CircuitGraphTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.128"
+    },
+    {
+      "name": "com.circuitagent.design.DesignApiTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.054"
+    },
+    {
+      "name": "com.circuitagent.design.DomainModelTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.005"
+    },
+    {
+      "name": "com.circuitagent.design.MigrationUpgradeTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "40.639"
+    },
+    {
+      "name": "com.circuitagent.design.MySqlPersistenceTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.884"
+    },
+    {
+      "name": "com.circuitagent.design.NetlistParserTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.134"
+    },
+    {
+      "name": "com.circuitagent.design.QcvApiTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "8.339"
+    },
+    {
+      "name": "com.circuitagent.design.QcvBoardRegressionTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "19.447"
+    },
+    {
+      "name": "com.circuitagent.design.QcvConversionTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.145"
+    },
+    {
+      "name": "com.circuitagent.design.QcvGraphTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.174"
+    },
+    {
+      "name": "com.circuitagent.design.QcvIntegrationTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.18"
+    },
+    {
+      "name": "com.circuitagent.design.QcvParserTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.035"
+    },
+    {
+      "name": "com.circuitagent.design.QcvPerformanceTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "7.073"
+    },
+    {
+      "name": "com.circuitagent.design.QcvPersistenceTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "14.668"
+    },
+    {
+      "name": "com.circuitagent.design.QcvRobustnessTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.528"
+    },
+    {
+      "name": "com.circuitagent.design.QcvSourceStructureTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.04"
+    },
+    {
+      "name": "com.circuitagent.design.ReviewMySqlTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.035"
+    },
+    {
+      "name": "com.circuitagent.design.ReviewRegressionTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.935"
+    }
+  ],
+  "totals": {
+    "tests": 80,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fixtures": [
+    {
+      "file": "fe.csv",
+      "bytes": 4563,
+      "sha256": "a81c954322a48ce59ec708d42111733235030df230d7db12d34ee3e258cb34ef"
+    },
+    {
+      "file": "fe.qcv",
+      "bytes": 19292,
+      "sha256": "6b6eeffb60e6b873ef434eb170cdb15db642d6223cb684f2d2e47822ecf43f84"
+    },
+    {
+      "file": "fe.xlsx",
+      "bytes": 7698,
+      "sha256": "10681e77b6b713c7044509b3e021b05b7d0992a82dc749d8046df2b1320bd173"
+    },
+    {
+      "file": "ntop.csv",
+      "bytes": 3335,
+      "sha256": "e9d4300f9ab9f20594cfe7533bd7cd5eef5d36ace1192f513c0a28ed67c33aba"
+    },
+    {
+      "file": "ntop.qcv",
+      "bytes": 13647,
+      "sha256": "e2345a26002d94a883066a1dd2889153e9f82bb7c1fd69030891f0b52b577077"
+    },
+    {
+      "file": "ntop.xlsx",
+      "bytes": 6761,
+      "sha256": "d3b14bf65ed9fcde25efed27d25a6a0ef274215b336c6310b58d8eb672e1c0f0"
+    },
+    {
+      "file": "fe-ntop.csv",
+      "bytes": 1386,
+      "sha256": "76237e7608b5f19b2988c1a39d46a3ae50771cf6e99249a71282e7e72f7e25e5"
+    },
+    {
+      "file": "fe-ntop.qcv",
+      "bytes": 8269,
+      "sha256": "3c1fa1e3301b51c434323fc7692f7cee0347b1f0949f6a8f084697aabb7b9739"
+    },
+    {
+      "file": "fe-ntop.xlsx",
+      "bytes": 4879,
+      "sha256": "9ed936d4eb96718156dd48339fbbc23aa0a43511dee91d2a601bc1225fc43585"
+    }
+  ],
+  "boards": [
+    {
+      "board": "FE R3",
+      "bomComponents": 445,
+      "qcvComponents": 453,
+      "netComponents": 445,
+      "matchedReferences": 445,
+      "nets": 335,
+      "connectedPins": 1500,
+      "separatePins": 143,
+      "terminatedPins": 135,
+      "noMount": 51,
+      "issues": {
+        "MISSING_VALUE": 72,
+        "NETLIST_ONLY_COMPONENT": 8
+      }
+    },
+    {
+      "board": "N-Top R3",
+      "bomComponents": 296,
+      "qcvComponents": 304,
+      "netComponents": 292,
+      "matchedReferences": 296,
+      "nets": 233,
+      "connectedPins": 972,
+      "separatePins": 147,
+      "terminatedPins": 139,
+      "noMount": 67,
+      "issues": {
+        "MISSING_VALUE": 85,
+        "NETLIST_ONLY_COMPONENT": 8
+      }
+    },
+    {
+      "board": "FE N-Top R3",
+      "bomComponents": 161,
+      "qcvComponents": 169,
+      "netComponents": 161,
+      "matchedReferences": 161,
+      "nets": 193,
+      "connectedPins": 794,
+      "separatePins": 25,
+      "terminatedPins": 17,
+      "noMount": 37,
+      "issues": {
+        "MISSING_VALUE": 121,
+        "NETLIST_ONLY_COMPONENT": 8
+      }
+    }
+  ]
+}

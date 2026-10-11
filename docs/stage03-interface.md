@@ -4,7 +4,7 @@ Stage 02는 Rule을 읽거나 FB 저항쌍/전압/도통을 판정하지 않는�
 Stage 03은 `DesignQueryService`를 주입하고 한 검증 작업에 하나의 불변 snapshot을
 사용한다. 개별 designId 메서드도 제공하지만 매번 DB를 복원하므로 연속 탐색에는
 snapshot이 적합하다. 현재는 전체 설계를 메모리에 복원하는 PoC이며 대규모 설계의
-조회·메모리 성능은 실제 QCV 데이터로 별도 측정해야 한다.
+공개 FE QCV 성능은 qcv-poc-validation.md에 기록한다. 실제 삼성 규모는 추가 측정이 필요하다.
 
 ```java
 var graph = designQueryService.snapshot(designId);
@@ -38,7 +38,8 @@ var neighborhood = graph.explore(startPin, explicitlyAllowedReferences, 4);
 
 연결 상태:
 - CONNECTED: 하나의 유효 Net 연결.
-- UNCONNECTED: library에 핀 목록이 있고 해당 핀에 연결 없음.
+- TERMINATED: QCV `(by TERM)` 명시적 종단, 오류나 Net 연결을 생성하지 않음.
+- UNCONNECTED: 명시적 QCV 미연결 선언 또는 library inventory에 연결 없는 핀.
 - AMBIGUOUS: 복수 Net 배정으로 연결 제외; ImportIssue 확인.
 - UNRESOLVED: 연결을 찾지 못했고 완전한 library 핀 목록도 확인되지 않음.
 - MISSING_PIN: 해당 핀이 모델에 없음. 없는 Component는 404/예외.
@@ -72,7 +73,7 @@ React나 외부 Stage 03 소비 코드는 현재 저장소에 없어 strict JSON
 BOM 원문 및 Netlist 내부 source 경로를 포함한다. 민감 원본을 공개 환경에 올리지 않는다.
 업로드 파일 경로는 basename으로 제한하고 입력 실패 응답은 내부 예외를 내보내지 않는다.
 
-실제 QCV 미지원(422). 공통 NetlistParser/IR은 재사용 가능하나 QCV의 계층별 반복 Ref,
+공개 PADS NET/PIN QCV는 지원한다. 삼성 QCV의 계층별 반복 Ref,
 핀 alias/논리·물리 번호, 전원 scope, 미연결 표기를 실제 원본/명세로 확인해야 한다.
 
 V1에서 이미 저장된 Component의 실장 상태는 마이그레이션 후 UNSPECIFIED이다.
@@ -80,3 +81,49 @@ V1 원문·연결은 보존하지만 과거 DNP를 자동 추측해 backfill하�
 필요한 과거 설계는 보관 원본으로 새 버전을 import하거나 검증된 변환 절차를 적용한다.
 V1에서 이미 소속 관계가 사라진 미참조 specification은 V2가 소속을 복구할 수 없다.
 현재 신규 저장 모델의 모든 사양은 design-spec 링크를 통해 보존된다.
+
+## 공개 QCV를 이용한 연동 예
+
+QCV에는 핀 이름/기능이 없어 `getPinsByName("U16", "FB")`를 임의로 채우지 않습니다.
+Stage 03이 검증된 데이터시트 pin mapping을 사용해 핀 번호를 선택해야 합니다.
+
+```java
+var graph = designQueryService.snapshot(designId);
+var u16 = graph.getComponent("U16");
+var en = graph.getPinContext("U16", "5"); // 실제 source label: U16_EN
+var pins = graph.getConnectedPins(en.net().id()); // R107-2, R83-2, U16-5
+var r107 = graph.getComponentSpecification("R107");
+var otherNet = graph.getNetOfPin("R107", "1"); // VDD
+var evidence = graph.explore(new PinKey("U16", "5"), Set.of("R107", "R83"), 3,
+    CircuitGraph.TraversalMode.INCLUDE_DNP_SCHEMATIC);
+```
+
+R107/R83는 원본에서 NoMount입니다. 기존 explore 기본은 DNP 부품 경유를 제외합니다.
+명시적인 INCLUDE_DNP_SCHEMATIC은 실장/도통 판단 없이 논리 topology와 출처만 반환합니다.
+반환 Neighborhood의 NET/COMPONENT edge 및 sourcePath, pin.sourceMetadata를 근거로 사용합니다.
+R107=140000 Ω, R83=56000 Ω이며 이를 상부/하부 저항으로 의미 분류하지 않습니다.
+
+RefDes/QtyOnBoard 카탈로그 BOM의 PartNumber는 내부 Part Number 동적 속성입니다.
+U16의 Part Name은 TPS54302DDC, 내부 Part Number는 EGP10001429이고 MPN/Value는 null입니다.
+Stage 03은 내부 PartNumber나 Part Name을 검증되지 않은 MPN으로 취급하지 않습니다.
+이 양식의 NoMount NM=DNP, 빈 NoMount=FITTED이며 generic DNP 빈 값 계약은 유지합니다.
+Voltage는 Voltage 속성으로 보존하고 임의 Voltage Rating으로 바꾸지 않습니다.
+
+실제 요청 순서(환경의 import 반환 ID를 사용):
+
+```sh
+curl http://localhost:8080/api/designs/$DESIGN_ID/components/U16
+curl http://localhost:8080/api/designs/$DESIGN_ID/components/U16/pins/5
+curl http://localhost:8080/api/designs/$DESIGN_ID/components/R107
+curl http://localhost:8080/api/designs/$DESIGN_ID/nets
+curl http://localhost:8080/api/designs/$DESIGN_ID/issues
+```
+
+pin context 응답은 status=CONNECTED, net.name=U16_EN과 component/specification/pin/issues를
+포함합니다. U29-5는 status=TERMINATED/net=null이고 없는 pin은 MISSING_PIN입니다.
+NetView의 connectedPins는 reference/number 쌍입니다. Net ID는 응답 그대로 다음 조회에 사용합니다.
+HTTP는 기존 net/component/pin 조회로 인접 부품을 탐색하며 제한적 다단계 탐색은 Java snapshot
+계약입니다. 신호 방향·FB/EN 기능 해석·PASS/FAIL은 Stage 03의 책임입니다.
+
+V3 migration은 기존 핀을 UNSPECIFIED/빈 metadata로 보존합니다. 새 import는 disposition과
+원문 행 metadata를 MySQL JSON에 저장/복원합니다.
