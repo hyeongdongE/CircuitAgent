@@ -85,3 +85,20 @@
 - 테스트 결과: QCV 원본 샘플 0개. QCV 구문/성공 파싱 테스트는 미실행. 미지원 경계 검증만 PASS.
 - 미해결 문제: 실제 QCV와 대응 BOM, 생성 도구/버전·인코딩·명세·정답 연결 정보 필요. 계층별 중복 Reference 규칙은 실제 샘플 기반 추가 설계 필요.
 - 다음 단계: STEP 9 지원되는 KiCad PoC 전체 clean test 및 GitHub 작업 결과 기록. QCV 구현은 자료 확보 시 별도 진행.
+
+## STEP 9 — 로컬/Cloud 검증 완료, 원격 GitHub 작업 차단
+
+- 구현한 기능: 지원 범위 전체 clean test, 실행 Boot JAR 빌드, 테스트 XML 집계, 단계별 커밋 및 PR 설명 준비. 기본 브랜치에는 부트스트랩만 생성했고 Stage 02는 feat/stage02-design-modeling에서 구현함. 원격 기본 브랜치 병합 없음.
+- 변경 파일: docs/stage02-progress.md, docs/stage02-test-results.json, docs/stage02-pr.md. 빌드 결과 backend/build/libs/circuitagent-0.1.0-SNAPSHOT.jar (Git 제외).
+- 테스트 명령: `cd backend && ./gradlew clean test bootJar --no-daemon`; `git diff --check`.
+- 테스트 결과: BUILD SUCCESSFUL. 27 tests / 0 failures / 0 errors / 0 skipped. 기본 앱 1, Fixture 1, Domain 3, BOM 6, Netlist 5, Graph 3, 실제 MySQL 3, 실제 MySQL 기반 API 5. 5V BOM/Netlist/매칭 모두 12, R1 1000 Ω, U1 L7805, Pin 25/Net 6/연결 25. Shift BOM 27/Netlist 31/매칭 27 및 H1~H4 이슈 확인. 원본 Fixture 무결성 유지. 실행 JAR 빌드 성공, diff check 통과.
+- 미실행 테스트: 실제 QCV 구문/성공 파싱 (샘플/명세 없음). QCV는 미지원 거절만 검증함. 외부 배포/React UI 테스트는 범위 밖.
+- GitHub 결과: `gh repo create hyeongdongE/CircuitAgent --private` → GraphQL CreateRepository 권한 부족으로 실패. 계정 조회는 가능하지만 저장소 생성은 불가. 원격 저장소/PR 없음, 로컬 작업 브랜치 `feat/stage02-design-modeling`. GitHub 계정 권한을 실행 환경의 파일·네트워크 권한으로 변경할 수 없음.
+- 다음 단계: GitHub에 빈 비공개 저장소 생성 또는 연결 계정의 생성 권한 확보 → main 부트스트랩과 작업 브랜치 push → 준비된 설명으로 PR 생성. 실제 QCV/대응 BOM 및 명세 확보 후 QCV 구현·검증.
+
+## 전달 파일
+
+- 저장소 경로: `/workspace/CircuitAgent`.
+- 소스 ZIP: `/workspace/CircuitAgent-source.zip` (빌드 캐시/개인 환경 파일 제외).
+- Git 이력 bundle: `/workspace/CircuitAgent.bundle` (main 및 작업 브랜치 포함).
+- QCV 지원 완료 또는 원격 PR 생성 완료를 주장하지 않음.
