@@ -1,6 +1,6 @@
 # CircuitAgent
 
-회로 검증 자동화 프로젝트의 Stage 02 (Design Modeling) 백엔드 PoC입니다.
+회로 검증 자동화 프로젝트의 Stage 02와 최소 Stage 03 통합 PoC입니다.
 공개 KiCad 회로와 Sparrow 3개 보드의 실제 PADS QCV + BOM XLSX로 검증합니다.
 
 - Java 21 **JDK**, Spring Boot 3.5.16, Gradle 8.14.6, MySQL 8
@@ -9,7 +9,9 @@
 - MySQL: JPA, Flyway, JSON 속성, 원본 파일·체크섬, 트랜잭션 저장·복원
 - REST: 파일 업로드 및 설계/부품/핀/Net/Issue 조회
 - QCV: **공개 Sparrow PADS NET/PIN 문법 지원**; 삼성 내부 변형은 미검증
-- React 화면과 Stage 01/03/04는 현재 구현 범위 밖입니다.
+- Stage 03: 정형 Rule adapter, 결정론적 범위/연결/FB 계산, 다섯 판정 상태·근거, MySQL Audit 이력
+- React: 실제 업로드/부품·Net 탐색/Rule 실행/저장된 이력 조회
+- Stage 01 실제 Parser·전체 AI 검증 엔진·Stage 04·기업 SSO는 이번 PoC 범위 밖입니다.
 
 ## 구조
 
@@ -87,3 +89,17 @@ MySQL 계정에는 `circuitagent` DB에 대한 테이블 생성/조회/수정 �
 사내 SSO/권한 및 원문 열람 정책 없이 실제 삼성 회로 데이터를 외부에 배포하지 마세요.
 
 [공개 QCV PoC 검증·출처·재현 방법](docs/qcv-poc-validation.md). 외부 원본/파생 XLSX는 라이선스가 명확하지 않아 커밋하지 않습니다. 전체 테스트 전 다운로드와 변환이 필요하며, 누락 시 테스트가 실패합니다.
+
+## Stage 03 + React 통합 PoC
+
+[연동 계약](docs/stage03-integration.md) · [실제 Sparrow 검증](docs/stage03-poc-validation.md) · [Audit API](docs/audit-api.md) · [React 실행](docs/frontend-guide.md) · [단계별 기록](docs/integration-progress.md)
+
+Backend103개(기존80+신규23), React unit6개, 실제 Chromium E2E2개를 실행했습니다. 실제 FE6 Rule은 PASS1/UNKNOWN5이며 PASS는 C5 nominal BOM 확인에 한정합니다. EN 저항의 NoMount, IC 신원·공차·실제 동작 조건 누락을 정상 동작으로 판정하지 않습니다.
+
+```sh
+cd frontend
+npm ci
+npm run dev
+```
+
+로컬 backend/MySQL이 먼저 실행되어야 합니다. 기본 API bind127.0.0.1이며 remote/production/enterprise 미설정 요청은 거절합니다. 로컬 경계는 사용자 인증이나 설계 소유권이 아니며 공개 proxy/인터넷에 배포하지 않습니다.

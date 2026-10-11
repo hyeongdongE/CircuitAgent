@@ -1,0 +1,92 @@
+[
+  {
+    "name": "@tanstack/react-query",
+    "version": "5.104.1",
+    "license": "MIT",
+    "kind": "dependencies"
+  },
+  {
+    "name": "react",
+    "version": "19.3.0",
+    "license": "MIT",
+    "kind": "dependencies"
+  },
+  {
+    "name": "react-dom",
+    "version": "19.3.0",
+    "license": "MIT",
+    "kind": "dependencies"
+  },
+  {
+    "name": "@playwright/test",
+    "version": "1.64.0",
+    "license": "Apache-2.0",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "@testing-library/jest-dom",
+    "version": "7.0.1",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "@testing-library/react",
+    "version": "16.3.3",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "@testing-library/user-event",
+    "version": "14.6.7",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "@types/node",
+    "version": "26.6.5",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "@types/react",
+    "version": "19.3.0",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "@types/react-dom",
+    "version": "19.3.0",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "@vitejs/plugin-react",
+    "version": "6.1.2",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "jsdom",
+    "version": "30.1.2",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "typescript",
+    "version": "7.0.2",
+    "license": "Apache-2.0",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "vite",
+    "version": "8.3.4",
+    "license": "MIT",
+    "kind": "devDependencies"
+  },
+  {
+    "name": "vitest",
+    "version": "5.0.3",
+    "license": "MIT",
+    "kind": "devDependencies"
+  }
+]

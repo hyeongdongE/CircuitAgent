@@ -1,0 +1,411 @@
+{
+  "baselineHead": "29a9f17885fea7ee0380ac68227f5fb12d7612d9",
+  "testedSourceCommit": "fcdd95e4859e14e8ebfcdc17daf0967bea86836f",
+  "date": "2026-10-11",
+  "command": "cd backend && ./gradlew clean test bootJar --no-daemon",
+  "originalTests": 80,
+  "newTests": 23,
+  "backend": {
+    "tests": 103,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "backendBuild": "PASS (6m18s)",
+  "frontend": {
+    "unit": 6,
+    "browser": "Chromium 156 / Playwright 1.64.0 / live Spring Boot and MySQL, no route mocks",
+    "failures": 0,
+    "skipped": 0,
+    "build": "PASS",
+    "browserDurationSeconds": 34.3
+  },
+  "mysql": "Actual Docker/Testcontainers MySQL 8.0.43; roundtrip/FK/rollback/isolation tested",
+  "realCircuit": {
+    "bomComponents": 445,
+    "qcvComponents": 453,
+    "referenceMatching": "445/445",
+    "nets": 335,
+    "connectedPins": 1500,
+    "separatePinDeclarations": 143,
+    "terminatedPins": 135,
+    "noMount": 51,
+    "importIssues": 80
+  },
+  "realAudit": [
+    {
+      "ruleId": "tps54302-u16-en-network",
+      "reference": "U16",
+      "status": "UNKNOWN",
+      "measured": null,
+      "unit": null,
+      "missingInputs": [
+        "Verified manufacturer MPN / applicable silicon revision",
+        "No known fitted neighbor on target net (DNP is logical topology only)"
+      ]
+    },
+    {
+      "ruleId": "tps54302-u16-vin",
+      "reference": "U16",
+      "status": "UNKNOWN",
+      "measured": null,
+      "unit": "V",
+      "missingInputs": [
+        "Verified manufacturer MPN / applicable silicon revision",
+        "U16.Operating VIN"
+      ]
+    },
+    {
+      "ruleId": "tps54302-u16-fb-nominal",
+      "reference": "U16",
+      "status": "UNKNOWN",
+      "measured": "11.96158139534883720930232558139535",
+      "unit": "V",
+      "missingInputs": [
+        "Verified manufacturer MPN / applicable silicon revision",
+        "Verified resistor tolerance percentage",
+        "Explicit expected target/range"
+      ]
+    },
+    {
+      "ruleId": "tps54302-c5-nominal",
+      "reference": "C5",
+      "status": "PASS",
+      "measured": "1E-7",
+      "unit": "F",
+      "missingInputs": []
+    },
+    {
+      "ruleId": "tps54302-c5-rating-evidence",
+      "reference": "C5",
+      "status": "UNKNOWN",
+      "measured": null,
+      "unit": "V",
+      "missingInputs": [
+        "C5.Voltage Rating"
+      ]
+    },
+    {
+      "ruleId": "tps54302-u16-ground-binding",
+      "reference": "U16",
+      "status": "UNKNOWN",
+      "measured": null,
+      "unit": null,
+      "missingInputs": [
+        "Verified manufacturer MPN / applicable silicon revision"
+      ]
+    }
+  ],
+  "suites": [
+    {
+      "name": "com.circuitagent.FixtureIntegrityTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:03.963Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.303"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.RuleInputTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:45.924Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.014"
+    },
+    {
+      "name": "com.circuitagent.design.QcvBoardRegressionTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:29.181Z",
+      "hostname": "d1e251a5325d",
+      "time": "28.74"
+    },
+    {
+      "name": "com.circuitagent.design.ReviewMySqlTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:41:32.394Z",
+      "hostname": "d1e251a5325d",
+      "time": "1.157"
+    },
+    {
+      "name": "com.circuitagent.design.MySqlPersistenceTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:13.885Z",
+      "hostname": "d1e251a5325d",
+      "time": "3.468"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.PocAccessBoundaryTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:44.134Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.063"
+    },
+    {
+      "name": "com.circuitagent.design.QcvPersistenceTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:41:07.446Z",
+      "hostname": "d1e251a5325d",
+      "time": "24.006"
+    },
+    {
+      "name": "com.circuitagent.ApplicationBootstrapTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:01.837Z",
+      "hostname": "d1e251a5325d",
+      "time": "2.085"
+    },
+    {
+      "name": "com.circuitagent.design.MigrationUpgradeTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:52.242Z",
+      "hostname": "d1e251a5325d",
+      "time": "81.579"
+    },
+    {
+      "name": "com.circuitagent.design.QcvPerformanceTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:58.712Z",
+      "hostname": "d1e251a5325d",
+      "time": "8.7"
+    },
+    {
+      "name": "com.circuitagent.design.QcvSourceStructureTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:41:32.309Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.043"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.RuleCheckerTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:44.201Z",
+      "hostname": "d1e251a5325d",
+      "time": "1.709"
+    },
+    {
+      "name": "com.circuitagent.design.QcvRobustnessTest",
+      "tests": "10",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:41:31.477Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.826"
+    },
+    {
+      "name": "com.circuitagent.design.CircuitGraphTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:47.633Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.088"
+    },
+    {
+      "name": "com.circuitagent.design.ReviewRegressionTest",
+      "tests": "17",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:41:33.554Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.788"
+    },
+    {
+      "name": "com.circuitagent.design.QcvConversionTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:57.926Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.27"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.AuditPerformanceTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:28.565Z",
+      "hostname": "d1e251a5325d",
+      "time": "8.974"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.ActualCircuitAuditTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:10.202Z",
+      "hostname": "d1e251a5325d",
+      "time": "13.852"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.AuditResultTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:43.930Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.011"
+    },
+    {
+      "name": "com.circuitagent.design.QcvParserTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:58.623Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.046"
+    },
+    {
+      "name": "com.circuitagent.design.QcvApiTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:17.394Z",
+      "hostname": "d1e251a5325d",
+      "time": "11.651"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.AuditApiTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:24.116Z",
+      "hostname": "d1e251a5325d",
+      "time": "4.431"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.SnapshotContractTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:45.946Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.261"
+    },
+    {
+      "name": "com.circuitagent.design.BomParserTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:46.216Z",
+      "hostname": "d1e251a5325d",
+      "time": "1.412"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.AuditPersistenceTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:37.602Z",
+      "hostname": "d1e251a5325d",
+      "time": "6.324"
+    },
+    {
+      "name": "com.circuitagent.design.DomainModelTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:52.233Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.007"
+    },
+    {
+      "name": "com.circuitagent.design.QcvGraphTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:58.202Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.204"
+    },
+    {
+      "name": "com.circuitagent.audit.poc.DatasheetCatalogTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:43.943Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.186"
+    },
+    {
+      "name": "com.circuitagent.design.NetlistParserTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:17.357Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.021"
+    },
+    {
+      "name": "com.circuitagent.design.DesignApiTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:38:47.761Z",
+      "hostname": "d1e251a5325d",
+      "time": "4.47"
+    },
+    {
+      "name": "com.circuitagent.design.QcvIntegrationTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-10-11T16:40:58.409Z",
+      "hostname": "d1e251a5325d",
+      "time": "0.211"
+    }
+  ]
+}
