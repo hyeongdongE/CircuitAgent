@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: circuitagent
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/circuitagent?useUnicode=true&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:circuitagent}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
