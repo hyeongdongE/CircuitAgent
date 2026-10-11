@@ -67,3 +67,12 @@
 - 테스트 결과: 4개 PASS. Docker + Testcontainers의 실제 MySQL 8.0.43로 Flyway/schema 검증, 5V 12/25/6/25 저장·복원 및 원본 파일 바이트 일치, Shift 이슈/MPN 공유 복원, 버전 격리와 늦은 제약 오류 시 전체 롤백, 같은 이름/버전 중복 거절 확인. H2 대체 없음. JSON 컬럼 3개 확인.
 - 미해결 문제: 원격 GitHub 생성 권한 부족 지속. DB 테스트는 Docker가 없으면 실패하며 자동 PASS/skip으로 처리하지 않음.
 - 다음 단계: STEP 7 업로드 및 회로 조회 REST API.
+
+## STEP 7 — 완료
+
+- 구현한 기능: multipart BOM/Netlist 업로드·파싱·통합·MySQL 저장, 전체 모델/Component/Pin/Net/Issue 조회, Component에 사양과 연결 함께 반환, 요청 검증, 파일 한도, 오류 400/404/409/413/422 및 구조 파싱 실패 ImportIssue 응답.
+- 변경 파일: design/api/*.java, DesignApiTest.java, docs/stage02-api.md.
+- 테스트 명령: `./gradlew test --tests com.circuitagent.design.DesignApiTest`.
+- 테스트 결과: 5개 PASS. MockMvc + 실제 서비스 + 실제 MySQL로 5V 업로드 201 (12/25/6), R1 1000 Ω 및 Net 6/5 조회, U1 L7805, Net/Issue 조회, 실제 Shift 추가 H1~H4 이슈 조회, 중복 버전 409, 파싱 실패 400/ImportIssue, 미지원 QCV 422, 잘못된 요청 400/없는 데이터 404 검증. Mock 저장소로 대체하지 않음.
+- 미해결 문제: React 화면은 필수 범위 밖으로 생성하지 않음.
+- 다음 단계: STEP 8 QCV 적용 준비와 실제 샘플 여부 명시.
