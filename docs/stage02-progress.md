@@ -58,3 +58,12 @@
 - 테스트 결과: 3개 PASS. 5V 12개 전부 매칭, 이슈 0, R1 1000 Ω, 핀 1→Net 6 / 핀 2→Net 5. Net 6의 C3/J1/R1/U1 및 Net 5의 D5/R1 조회. 두 Net이 합쳐지지 않음을 검증. Shift 27개 전부 매칭, H1~H4의 NETLIST_ONLY_COMPONENT 4건 기록. BOM-only 및 값 충돌은 보조 테스트로 검증.
 - 미해결 문제: 없음. 아직 DB/API 구현 전.
 - 다음 단계: STEP 6 MySQL 저장 및 모델 복원.
+
+## STEP 6 — 완료 (실제 MySQL 검증)
+
+- 구현한 기능: 7개 회로 Entity/테이블 + import_file, Spring Data JPA 저장소 및 트랜잭션 저장/조회, UUID 관계, 설계 이름/버전 및 Reference/Pin/Net 유일성, 대소문자 구별 UTF-8, 동적 속성/원본 레코드 JSON, 원본 바이트/체크섬/Import 시각, 조회 인덱스, Flyway V1 마이그레이션 및 Hibernate validate.
+- 변경 파일: backend/build.gradle, application bootstrap test, design/persistence/*.java, db/migration/V1__circuit_design.sql, AttributeValue.java (JSON 숫자의 정규 형태 유지), MySqlIntegrationSupport.java, MySqlPersistenceTest.java.
+- 테스트 명령: `./gradlew test --tests com.circuitagent.design.MySqlPersistenceTest --tests com.circuitagent.ApplicationBootstrapTest`.
+- 테스트 결과: 4개 PASS. Docker + Testcontainers의 실제 MySQL 8.0.43로 Flyway/schema 검증, 5V 12/25/6/25 저장·복원 및 원본 파일 바이트 일치, Shift 이슈/MPN 공유 복원, 버전 격리와 늦은 제약 오류 시 전체 롤백, 같은 이름/버전 중복 거절 확인. H2 대체 없음. JSON 컬럼 3개 확인.
+- 미해결 문제: 원격 GitHub 생성 권한 부족 지속. DB 테스트는 Docker가 없으면 실패하며 자동 PASS/skip으로 처리하지 않음.
+- 다음 단계: STEP 7 업로드 및 회로 조회 REST API.
