@@ -22,3 +22,12 @@
 - 테스트 결과: 무결성 테스트 1개 PASS (4개 파일). 5V BOM 12 / Netlist 12 / 매칭 12. Shift BOM 27 / Netlist 31 / 매칭 27 / Netlist-only H1~H4. 5V CSV는 세미콜론, Shift CSV는 쉼표 구분. Netlist는 KiCad S-expression. 전부 UTF-8 (BOM 없음).
 - 미해결 문제: QCV 샘플 없음. 이 단계의 수량 확인은 Fixture 사전 검사이며 Java 파서 완성 검증은 후속 단계에서 수행.
 - 다음 단계: STEP 2 공통 메모리 도메인 모델.
+
+## STEP 2 — 완료
+
+- 구현한 기능: 요청된 7개 공통 개념과 PinKey/AttributeValue, 불변 메모리 모델, 참조 무결성 및 단일 핀의 복수 Net 연결 방지. 동적 속성/원본 데이터 보존, 누락 값 null/미등록.
+- 변경 파일: backend/src/main/java/com/circuitagent/design/model/*.java, DomainModelTest.java, docs/stage02-model.md.
+- 테스트 명령: `./gradlew test --tests com.circuitagent.design.DomainModelTest`.
+- 테스트 결과: 3개 PASS (사양 공유 및 누락값, 잘못된 연결 거부, 원본값 방어적 복사).
+- 미해결 문제: 없음. DB는 아직 구현하지 않음.
+- 다음 단계: STEP 3 BOM CSV/XLSX/XLS 파서.
