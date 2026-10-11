@@ -24,5 +24,20 @@ class RuleCheckerTest {
         var rule=new AuditRule("own-equation","test",AuditRule.Type.FB_DIVIDER,new AuditRule.Target("U1",null,"4","FB",false),"Synthetic equation fixture; explicitly supplied limits",true,null,null,"V",new AuditRule.Bounds(new BigDecimal("1.9"),new BigDecimal("2.1"),BigDecimal.ZERO),null,new AuditRule.Divider("R1","R2","1",BigDecimal.ONE,new BigDecimal("0.99"),new BigDecimal("1.01"),BigDecimal.ONE),RuleInputTest.SOURCE);
         assertThat(checker.evaluate(g,rule).status()).isEqualTo(AuditStatus.PASS);
         var bad=own("Reference,Value,DNP\nU1,IC,no\nR1,10k,no\nR2,0R,no\n","NET : 'fb' U1-4 R1-1 R2-1\nNET : 'gnd' U1-1 R2-2\nNET : 'out' R1-2\n");assertThat(checker.evaluate(bad,rule).status()).isEqualTo(AuditStatus.UNKNOWN);
+        var dnp=own("Reference,Value,DNP\nU1,IC,no\nR1,10k,yes\nR2,10k,no\n","NET : 'fb' U1-4 R1-1 R2-1\nNET : 'gnd' U1-1 R2-2\nNET : 'out' R1-2\n");var dnpResult=checker.evaluate(dnp,rule);assertThat(dnpResult.status()).isEqualTo(AuditStatus.UNKNOWN);assertThat(dnpResult.measured()).isNull();
+    }
+    @Test void ownExplicitNetBindingPassFailAndTerminatedMissingAmbiguousPinsAreUnknown() throws Exception {
+        var rule=new AuditRule("own-net","test",AuditRule.Type.NET_MATCH,new AuditRule.Target("U1",null,"1","GND",false),"Own synthetic literal net binding",true,null,null,null,null,"gnd",null,RuleInputTest.SOURCE);
+        var bom="Reference,Value,DNP\nU1,IC,no\nR1,1k,no\n";
+        assertThat(checker.evaluate(own(bom,"NET : 'gnd' U1-1 R1-1\n"),rule).status()).isEqualTo(AuditStatus.PASS);
+        assertThat(checker.evaluate(own(bom,"NET : 'other' U1-1 R1-1\n"),rule).status()).isEqualTo(AuditStatus.FAIL);
+        for(var qcv:List.of("PIN : '/U1' U1-1 (by TERM)\n","NET : 'gnd' U1-2 R1-1\n","NET : 'gnd' U1-1 R1-1\nNET : 'other' U1-1\n"))
+            assertThat(checker.evaluate(own(bom,qcv),rule).status()).isEqualTo(AuditStatus.UNKNOWN);
+    }
+    @Test void ownExplicitApplicabilityIsNotApplicableEvenWithoutTarget() throws Exception {
+        var r=RuleInputTest.range("not-applicable","Ω","1","2");
+        var disabled=new AuditRule(r.id(),r.version(),r.type(),r.target(),r.condition(),false,"Explicitly excluded fixture condition",r.attribute(),r.unit(),r.expected(),r.expectedNet(),r.divider(),r.source());
+        var g=own("Reference,Value,DNP\nR2,1k,no\n","NET : 'x' R2-1\n");
+        assertThat(checker.evaluate(g,disabled).status()).isEqualTo(AuditStatus.NOT_APPLICABLE);
     }
 }

@@ -16,7 +16,8 @@ public class AuditRunner {
         }times.put("circuitTraversalPreflightMs",elapsed(start));
         start=System.nanoTime();var results=rules.stream().map(r->checker.evaluate(graph,r)).toList();times.put("ruleEvaluationIncludingGraphLookupsMs",elapsed(start));
         var d=graph.designSnapshot();
-        return new AuditExecution(UUID.randomUUID(),d.id(),d.version(),hash(graph),rules,results,Instant.now(),times);
+        start=System.nanoTime();var snapshotHash=hash(graph);times.put("snapshotHashMs",elapsed(start));
+        return new AuditExecution(UUID.randomUUID(),d.id(),d.version(),snapshotHash,rules,results,Instant.now(),times);
     }
     public String hash(CircuitGraph graph) {
         try {

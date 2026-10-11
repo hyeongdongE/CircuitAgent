@@ -86,6 +86,8 @@ public class DeterministicRuleChecker {
             var up=component(d.upperReference());var lo=component(d.lowerReference());
             if(up==null || lo==null)return result(AuditStatus.UNKNOWN,null,"Divider component missing");
             for(var c:List.of(up,lo))if(c.assemblyStatus()!=AssemblyStatus.FITTED)missing.add(c.reference()+" is not confirmed fitted: "+c.assemblyStatus());
+            if(up.assemblyStatus()!=AssemblyStatus.FITTED || lo.assemblyStatus()!=AssemblyStatus.FITTED)
+                return result(AuditStatus.UNKNOWN,null,"Unpopulated or unspecified divider cannot establish an operating set point");
             var uOther=opposite(up.reference(),fb.net().id());var lOther=opposite(lo.reference(),fb.net().id());
             if(uOther==null || lOther==null || !lOther.net().id().equals(ground.net().id()) || uOther.net().id().equals(ground.net().id())){missing.add("Verified output→upper→FB→lower→GND topology");return result(AuditStatus.UNKNOWN,null,"Divider topology is incomplete or contradictory");}
             var ru=attribute(up.reference(),"Resistance","Ω");var rl=attribute(lo.reference(),"Resistance","Ω");
