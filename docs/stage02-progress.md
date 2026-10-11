@@ -126,3 +126,18 @@
 - 저장소 비공개 유지, 기본 브랜치 직접 병합 없음.
 - 후속 변경은 문서뿐이며 구현 코드의 마지막 전체 검증은 clean test bootJar 27개 PASS. 새 테스트를 실행했다고 주장하지 않음.
 - 다음 단계: PR 검토 후 사용자/팀이 병합 여부 결정. QCV 구현은 실제 샘플과 명세 확보 후 진행.
+
+## PR #1 리뷰 및 Stage 03 연동 준비 (2026-10-11)
+
+원래 STEP 0~9 기록은 보존한다. 새 리뷰 STEP 1~8의 확인/문제/수정/테스트/다음 단계는
+[순차 리뷰 기록](stage02-review.md)에 남겼다. 검토 기준 PR HEAD `85b5b9d410fcb1df11c77ce8806dfe8eacd40586`.
+기존 27개 재실행 PASS; 개선 후 최종 `clean test bootJar` 51 PASS / failures·errors·skipped 0.
+실제 MySQL V1→V2, DNP/미참조 사양 복원, 격리/FK/롤백/API 및 실제 공개 Fixture 검증.
+DNP/사양 재사용/중복 Net/입력 제한/Stage 03 snapshot·pin 상태·탐색을 보완했다.
+[Stage 03 계약](stage03-interface.md) 및 [최종 집계](stage02-review-test-results.json) 참고.
+미해결: 실제 QCV/정답 회로·사내 SSO/설계 권한·외부 Stage 03 DTO/대규모 성능 검증.
+다음: 리뷰 STEP 9 같은 feature 브랜치/PR #1에 반영. main 병합 안 함.
+
+리뷰 STEP 9: 구현 `99c334c`, 테스트 `f7d376e`를 기존 feature 브랜치에 push했고
+PR #1 설명/제목을 최종 결과로 갱신했다(REST 확인 OPEN/main/기존 branch).
+리뷰 문서와 집계도 같은 브랜치의 문서 commit으로 반영한다. 기본 브랜치 병합 없음.

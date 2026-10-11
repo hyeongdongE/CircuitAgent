@@ -76,3 +76,10 @@ MySQL 계정에는 `circuitagent` DB에 대한 테이블 생성/조회/수정 �
 
 [REST 사용법](docs/stage02-api.md) · [단계별 검증](docs/stage02-progress.md) ·
 [공통 모델](docs/stage02-model.md) · [QCV 추가 자료](docs/stage02-qcv.md)
+
+## Stage 02 리뷰 및 Stage 03 계약
+
+[PR #1 리뷰 결과](docs/stage02-review.md) · [Stage 03 조회 계약](docs/stage03-interface.md)
+
+현재는 신뢰된 PoC 환경용입니다. 인증·설계별 사용자 접근 통제가 없으므로
+사내 SSO/권한 및 원문 열람 정책 없이 실제 삼성 회로 데이터를 외부에 배포하지 마세요.

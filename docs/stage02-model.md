@@ -15,3 +15,11 @@ CircuitNet, PinConnection, ImportIssue 및 Source 메타데이터를 소유합�
 파서는 문제가 있는 입력을 ImportIssue로 기록하고 무효 관계를 모델에 삽입하지 않습니다.
 핀 두 개가 같은 부품에 속해 있어도 두 Net은 합치지 않습니다.
 모델은 DB와 독립적이며 컬렉션을 방어적으로 복사합니다.
+
+PR #1 리뷰 개선: ComponentInstance의 assemblyStatus는 인스턴스별
+DNP/FITTED/UNSPECIFIED이며 공유 PartSpecification의 동적 속성과 분리된다.
+원문 BOM 행은 그대로 유지하고 rawSources.provenance.bomLocation에 행 위치를 보존한다.
+Netlist rawSources의 pinInventory는 library에서 알려진 완전한 핀 목록 여부를 나타내는
+파생 메타데이터다. MPN 사양의 numeric 속성은 SI 의미로 공유하므로 사양 AttributeValue.raw는
+첫 사양 원문이며 개별 부품 원문은 해당 ComponentInstance.rawSources.bom을 사용한다.
+공통 조회/연결 상태 및 탐색의 의미는 [Stage 03 계약](stage03-interface.md)을 참고한다.

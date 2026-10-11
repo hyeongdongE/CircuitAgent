@@ -43,3 +43,19 @@ curl -f -X POST http://localhost:8080/api/designs/import \
 
 위 명령은 저장소 루트에서 실행합니다. 실제 QCV 지원과 Stage 03 회로 검증 규칙은
 현재 API 구현 범위가 아닙니다.
+
+## PR #1 리뷰 후 추가 사항
+
+Component 응답의 `assemblyStatus`와 상세 pin context route는
+[Stage 03 조회 계약](stage03-interface.md)을 참고한다. 기존 route/필드는 유지된다.
+Netlist는 `.net` 또는 `.qcv` 확장자만 허용하며 실제 내용도 해당 파서가 검증한다.
+XLS/XLSX 확장자와 workbook 형식 불일치 및 비어 있지 않은 헤더 없는 셀은 400이다.
+XLSX 압축 해제 합계는 32 MiB/1,000 entries까지이며 POI 로딩 전에 검사한다.
+BOM 제한: 50,000행/256컬럼/250,000셀; S-expression은 500,000 values/256 nesting.
+초과 시 일부 모델을 저장하지 않는다. 숫자 정규화는 문자열 128자, precision/scale 64 제한.
+업로드 경로는 basename으로 정리하며 파싱 실패 응답은 입력 파일명과 일반 오류만 포함한다.
+
+동일 name/version의 업로드는 409이고 같은 파일을 다른 name/version에 재사용하는 것은
+허용한다. checksum은 원본 무결성 확인용이며 전역 파일 중복 업로드 차단 키가 아니다.
+현재 API에는 사용자 인증/설계 권한 검사가 없다. 실제 삼성 데이터 배포 전 사내 SSO,
+소유권 및 원문 조회 권한을 추가해야 한다. 전체 모델 원문/source 정보 노출 정책도 필요하다.
