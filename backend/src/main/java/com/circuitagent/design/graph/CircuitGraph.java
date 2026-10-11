@@ -51,6 +51,8 @@ public final class CircuitGraph {
         return getComponentSpecification(ref).attributes();
     }
     public UUID designId() { return design.id(); }
+    /** Immutable domain snapshot for version/hash provenance without another database load. */
+    public CircuitDesign designSnapshot() { return design; }
     public List<ImportIssue> getComponentIssues(String ref) {
         getComponent(ref);
         return design.issues().stream().filter(i -> i.reference() == null || ref.equals(i.reference())).toList();

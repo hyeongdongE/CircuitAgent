@@ -1,0 +1,200 @@
+{
+  "schemaVersion": "poc-rule-v1",
+  "family": "TPS54302",
+  "package": "DDC (6-pin SOT-23-THIN)",
+  "identity": "BOM Part Name family/package candidate; actual orderable MPN and R3-era applicable silicon/datasheet revision remain unverified.",
+  "pinMapping": {
+    "GND": "1",
+    "SW": "2",
+    "VIN": "3",
+    "FB": "4",
+    "EN": "5",
+    "BOOT": "6"
+  },
+  "rules": [
+    {
+      "id": "tps54302-u16-en-network",
+      "version": "poc-1",
+      "type": "PIN_CONNECTED",
+      "target": {
+        "reference": "U16",
+        "partName": "TPS54302DDC",
+        "pinNumber": "5",
+        "pinFunction": "EN",
+        "requireVerifiedMpn": true
+      },
+      "condition": "Audit populated EN network topology only. TI allows floating EN; absent fitted neighbors is UNKNOWN, not an EN functional failure.",
+      "applicable": true,
+      "notApplicableReason": null,
+      "attribute": null,
+      "unit": null,
+      "expected": null,
+      "expectedNet": null,
+      "divider": null,
+      "source": {
+        "url": "https://www.ti.com/lit/ds/symlink/tps54302.pdf",
+        "revision": "SLVSDG6C / March 2026",
+        "page": 3,
+        "section": "4 Table 4-1",
+        "summary": "EN is pin 5; TI permits floating EN to enable.",
+        "sha256": "1632b388d1ba3a46c8e8f090ddfec2114c0f538cfb8364ddcda583fee3fdbdc5"
+      }
+    },
+    {
+      "id": "tps54302-u16-vin",
+      "version": "poc-1",
+      "type": "VALUE_RANGE",
+      "target": {
+        "reference": "U16",
+        "partName": "TPS54302DDC",
+        "pinNumber": null,
+        "pinFunction": null,
+        "requireVerifiedMpn": true
+      },
+      "condition": "Requires measured operating VIN; a net label and BOM Voltage are not an operating measurement.",
+      "applicable": true,
+      "notApplicableReason": null,
+      "attribute": "Operating VIN",
+      "unit": "V",
+      "expected": {
+        "min": "4.5",
+        "max": "28",
+        "tolerancePercent": "0"
+      },
+      "expectedNet": null,
+      "divider": null,
+      "source": {
+        "url": "https://www.ti.com/lit/ds/symlink/tps54302.pdf",
+        "revision": "SLVSDG6C / March 2026",
+        "page": 4,
+        "section": "5.3 Recommended Operating Conditions",
+        "summary": "VIN recommended operating interval is 4.5 to 28 V; junction temperature also matters.",
+        "sha256": "1632b388d1ba3a46c8e8f090ddfec2114c0f538cfb8364ddcda583fee3fdbdc5"
+      }
+    },
+    {
+      "id": "tps54302-u16-fb-nominal",
+      "version": "poc-1",
+      "type": "FB_DIVIDER",
+      "target": {
+        "reference": "U16",
+        "partName": "TPS54302DDC",
+        "pinNumber": "4",
+        "pinFunction": "FB",
+        "requireVerifiedMpn": true
+      },
+      "condition": "Calculate nominal resistor-divider set point only after topology/assembly checks. Missing target voltage, resistor tolerance or verified MPN prevents conformity PASS.",
+      "applicable": true,
+      "notApplicableReason": null,
+      "attribute": null,
+      "unit": "V",
+      "expected": null,
+      "expectedNet": null,
+      "divider": {
+        "upperReference": "R82",
+        "lowerReference": "R87",
+        "groundPin": "1",
+        "vref": "0.596",
+        "vrefMin": "0.581",
+        "vrefMax": "0.611",
+        "resistorTolerancePercent": null
+      },
+      "source": {
+        "url": "https://www.ti.com/lit/ds/symlink/tps54302.pdf",
+        "revision": "SLVSDG6C / March 2026",
+        "page": 15,
+        "section": "7.2.3.3 Equation 7; 5.5 p5; 6.3.7-8 p11",
+        "summary": "Vout = Vref * (1 + Rupper/Rlower); Vref nominal 0.596 V, limits 0.581/0.611 V at specified conditions. 1% or better divider resistors are recommended.",
+        "sha256": "1632b388d1ba3a46c8e8f090ddfec2114c0f538cfb8364ddcda583fee3fdbdc5"
+      }
+    },
+    {
+      "id": "tps54302-c5-nominal",
+      "version": "poc-1",
+      "type": "VALUE_RANGE",
+      "target": {
+        "reference": "C5",
+        "partName": null,
+        "pinNumber": null,
+        "pinFunction": null,
+        "requireVerifiedMpn": false
+      },
+      "condition": "Nominal BOM capacitance check only; not proof of DC bias, dielectric, tolerance, assembly performance or complete converter compliance.",
+      "applicable": true,
+      "notApplicableReason": null,
+      "attribute": "Capacitance",
+      "unit": "F",
+      "expected": {
+        "min": "0.0000001",
+        "max": "0.0000001",
+        "tolerancePercent": "0"
+      },
+      "expectedNet": null,
+      "divider": null,
+      "source": {
+        "url": "https://www.ti.com/lit/ds/symlink/tps54302.pdf",
+        "revision": "SLVSDG6C / March 2026",
+        "page": 15,
+        "section": "7.2.3.2 Bootstrap Capacitor Selection; Table4-1 p3",
+        "summary": "Nominal bootstrap capacitance is 0.1 uF between BOOT and SW. Manual PoC binding C5 was verified against actual U16-6 and U16-2 nets.",
+        "sha256": "1632b388d1ba3a46c8e8f090ddfec2114c0f538cfb8364ddcda583fee3fdbdc5"
+      }
+    },
+    {
+      "id": "tps54302-c5-rating-evidence",
+      "version": "poc-1",
+      "type": "ATTRIBUTE_PRESENT",
+      "target": {
+        "reference": "C5",
+        "partName": null,
+        "pinNumber": null,
+        "pinFunction": null,
+        "requireVerifiedMpn": false
+      },
+      "condition": "Requires explicit voltage rating evidence; generic catalogue Voltage is not automatically a rating.",
+      "applicable": true,
+      "notApplicableReason": null,
+      "attribute": "Voltage Rating",
+      "unit": "V",
+      "expected": null,
+      "expectedNet": null,
+      "divider": null,
+      "source": {
+        "url": "https://www.ti.com/lit/ds/symlink/tps54302.pdf",
+        "revision": "SLVSDG6C / March 2026",
+        "page": 15,
+        "section": "7.2.3.2; 5.1 p4",
+        "summary": "Capacitor rating evidence is needed for a complete operating assessment; this check does not infer ratings from nominal capacitance.",
+        "sha256": "1632b388d1ba3a46c8e8f090ddfec2114c0f538cfb8364ddcda583fee3fdbdc5"
+      }
+    },
+    {
+      "id": "tps54302-u16-ground-binding",
+      "version": "poc-1",
+      "type": "NET_MATCH",
+      "target": {
+        "reference": "U16",
+        "partName": "TPS54302DDC",
+        "pinNumber": "1",
+        "pinFunction": "GND",
+        "requireVerifiedMpn": true
+      },
+      "condition": "Explicit PoC binding of GND pin to source net GND, not a measured voltage assertion.",
+      "applicable": true,
+      "notApplicableReason": null,
+      "attribute": null,
+      "unit": null,
+      "expected": null,
+      "expectedNet": "GND",
+      "divider": null,
+      "source": {
+        "url": "https://www.ti.com/lit/ds/symlink/tps54302.pdf",
+        "revision": "SLVSDG6C / March 2026",
+        "page": 3,
+        "section": "4 Table 4-1",
+        "summary": "GND is pin 1. Net label binding GND is a PoC input verified in this QCV, not a TI net naming requirement.",
+        "sha256": "1632b388d1ba3a46c8e8f090ddfec2114c0f538cfb8364ddcda583fee3fdbdc5"
+      }
+    }
+  ]
+}
