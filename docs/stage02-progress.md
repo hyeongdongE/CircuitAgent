@@ -49,3 +49,12 @@
 - 테스트 결과: 5개 PASS. 실제 5V Component 12 / Pin 25 / Net 6 / Connection 25 / GND 연결 Pin 8. 실제 Shift Component 31 및 H1~H4 확인. 관계 무결성 검증 통과. 문자열/중첩/잘못된 문법/모호한 연결은 보조 테스트.
 - 미해결 문제: QCV는 실제 샘플/명세가 없어 UnsupportedOperationException으로 명시적 거절; QCV 지원 완료 아님.
 - 다음 단계: STEP 5 BOM/Netlist 통합 및 무방향 연결 조회.
+
+## STEP 5 — 완료 (핵심 메모리 PoC)
+
+- 구현한 기능: BOM/Netlist 통합, BOM 값 우선·양측 원본 유지, 단위 동치 비교, Reference 불일치/값 충돌 기록, Map 기반 Pin↔Net 인덱스 조회. 설계에 바인딩된 CircuitGraph의 Component/Pins/Net/ConnectedPins/ComponentsOnNet/Attributes 조회.
+- 변경 파일: design/graph/{CircuitAssembler,CircuitGraph}.java, CircuitGraphTest.java.
+- 테스트 명령: `./gradlew test --tests com.circuitagent.design.CircuitGraphTest`.
+- 테스트 결과: 3개 PASS. 5V 12개 전부 매칭, 이슈 0, R1 1000 Ω, 핀 1→Net 6 / 핀 2→Net 5. Net 6의 C3/J1/R1/U1 및 Net 5의 D5/R1 조회. 두 Net이 합쳐지지 않음을 검증. Shift 27개 전부 매칭, H1~H4의 NETLIST_ONLY_COMPONENT 4건 기록. BOM-only 및 값 충돌은 보조 테스트로 검증.
+- 미해결 문제: 없음. 아직 DB/API 구현 전.
+- 다음 단계: STEP 6 MySQL 저장 및 모델 복원.
