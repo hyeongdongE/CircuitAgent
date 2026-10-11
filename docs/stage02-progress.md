@@ -40,3 +40,12 @@
 - 테스트 결과: 6개 PASS. 실제 5V Reference 12, R1 원문 1k / 정규값 1000 Ω, U1 L7805, 그룹 정상 분리, 이슈 0. 실제 Shift 27, R3~R9 및 LED 사양 공유; 원본 '~' 값의 MISSING_VALUE 1건을 정확히 기록. XLS/XLSX 테스트는 보조 생성 데이터이며 실제 공개 CSV 검증과 구별함.
 - 미해결 문제: Reference 범위 축약(R1-R5)과 비 UTF-8 CSV는 임의 해석하지 않음. 명시적 Reference와 UTF-8 입력이 필요함.
 - 다음 단계: STEP 4 구조적 KiCad S-expression 파서. QCV 문법 추정 없음.
+
+## STEP 4 — 완료 (KiCad), QCV 명시적 미지원
+
+- 구현한 기능: NetlistParser 인터페이스 분리, 중첩/인용 문자열/escape/EOF/깊이 제한을 처리하는 S-expression 구조 파서, KiCad 컴포넌트·라이브러리 핀·Net 노드·소스 추출. 모호한 복수 Net 핀은 이슈 기록 후 연결 제외. 미연결 라이브러리 핀 유지.
+- 변경 파일: design/parse/{SExpression,NetlistParser,NetlistResult,KiCadNetlistParser,QcvNetlistParser}.java, NetlistParserTest.java.
+- 테스트 명령: `./gradlew test --tests com.circuitagent.design.NetlistParserTest`.
+- 테스트 결과: 5개 PASS. 실제 5V Component 12 / Pin 25 / Net 6 / Connection 25 / GND 연결 Pin 8. 실제 Shift Component 31 및 H1~H4 확인. 관계 무결성 검증 통과. 문자열/중첩/잘못된 문법/모호한 연결은 보조 테스트.
+- 미해결 문제: QCV는 실제 샘플/명세가 없어 UnsupportedOperationException으로 명시적 거절; QCV 지원 완료 아님.
+- 다음 단계: STEP 5 BOM/Netlist 통합 및 무방향 연결 조회.
