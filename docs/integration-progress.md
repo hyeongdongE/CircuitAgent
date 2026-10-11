@@ -141,3 +141,5 @@
 - 재실행: README의 다운로드 → convertQcvBoms → Gradle 명령, frontend-guide의 npm ci → test/build 절차로 생성 파일을 다시 만든다. 한국어 주석만으로 확인되지 않은 삼성 QCV 호환성/기업 인증/실제 동작 적합성을 주장하지 않는다.
 - 최종 재컴파일: 한국어 주석과 wildcard import 정리 후 `./gradlew compileJava bootJar --no-daemon` BUILD SUCCESSFUL(52s).
 - 다음: 같은 통합 작업 브랜치에서 PR #2에 반영하고 팀 코드 리뷰를 진행한다.
+
+- 주석·정리 코드 커밋: `c118e010251ddf5260923b13fac0e44ef5fbad32` (`feat/stage03-integration-poc`), 기존 PR #2 유지.

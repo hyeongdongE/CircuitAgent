@@ -414,5 +414,6 @@
     "semanticCheck": "Java executable tokens unchanged except unused local and always-true private parameter; TS AST unchanged apart from JSX layout whitespace/parentheses",
     "migrations": "V1–V4 unchanged"
   },
-  "initialIntegrationTestedSourceCommit": "fcdd95e4859e14e8ebfcdc17daf0967bea86836f"
+  "initialIntegrationTestedSourceCommit": "fcdd95e4859e14e8ebfcdc17daf0967bea86836f",
+  "testedSourceCommit": "c118e010251ddf5260923b13fac0e44ef5fbad32"
 }
