@@ -62,10 +62,10 @@ class DesignApiTest extends MySqlIntegrationSupport {
             .andExpect(jsonPath("$.issues[0].source").value("invalid.net"));
     }
     @Test
-    void qcvIsExplicitlyUnsupported() throws Exception {
+    void malformedQcvIsRejectedWithoutInventingAValidModel() throws Exception {
         var qcv = new MockMultipartFile("netlist", "real-required.qcv", "text/plain", new byte[]{1});
         mvc.perform(multipart("/api/designs/import").file(bom5v()).file(qcv).param("name", "unsupported"))
-            .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value("UNSUPPORTED_FORMAT"));
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PARSE_FAILURE"));
     }
     @Test
     void validatesRequestsAndReturns404ForUnknownDesign() throws Exception {

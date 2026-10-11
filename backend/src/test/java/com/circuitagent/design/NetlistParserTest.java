@@ -59,8 +59,8 @@ class NetlistParserTest {
         assertThat(result.issues()).extracting(ImportIssue::code).containsExactly(ImportIssue.Code.AMBIGUOUS_CONNECTION, ImportIssue.Code.UNKNOWN_COMPONENT);
     }
     @Test
-    void qcvDoesNotPretendToParseUnknownSyntax() {
+    void qcvRejectsEmptyInputRatherThanPretendingToParseIt() {
         assertThatThrownBy(() -> new QcvNetlistParser().parse(new byte[0], "design.qcv"))
-            .isInstanceOf(UnsupportedOperationException.class).hasMessageContaining("real QCV sample");
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("no terminals");
     }
 }
