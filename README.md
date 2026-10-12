@@ -118,7 +118,7 @@ python -m playwright install chromium
 python -m pytest -q browser_tests
 ```
 
-순수 파서·그래프·Rule 테스트만 실행할 때는 `python -m pytest -q tests/test_model_parsers.py tests/test_audit.py`로 범위를 명시합니다. 자세한 실제 결과는 [검증 문서](docs/python-validation.md)에 기록합니다.
+순수 파서·그래프·Rule 테스트만 실행할 때는 `python -m pytest -q tests/test_model_parsers.py tests/test_audit.py`로 범위를 명시합니다. 최신 Docker 없는 실행 결과는 [직접 설치 MySQL 검증](docs/native-mysql-validation.md)에 기록합니다.
 
 ## 코드를 읽는 순서
 
