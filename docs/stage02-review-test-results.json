@@ -1,0 +1,132 @@
+{
+  "reviewBaselineHead": "85b5b9d410fcb1df11c77ce8806dfe8eacd40586",
+  "date": "2026-10-11",
+  "command": "./gradlew clean test bootJar --no-daemon",
+  "java": "Temurin JDK 21.0.12.1+1",
+  "database": "MySQL 8.0.43 via Docker/Testcontainers; no H2 or skipped DB tests",
+  "build": "BUILD SUCCESSFUL",
+  "suites": [
+    {
+      "suite": "com.circuitagent.ApplicationBootstrapTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.FixtureIntegrityTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.BomParserTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.CircuitGraphTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.DesignApiTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.DomainModelTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.MigrationUpgradeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.MySqlPersistenceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.NetlistParserTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.ReviewMySqlTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.circuitagent.design.ReviewRegressionTest",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "total": {
+    "tests": 51,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "baseline": {
+    "tests": 27,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fixture5v": {
+    "bom": 12,
+    "netlistComponents": 12,
+    "matched": 12,
+    "pins": 25,
+    "nets": 6,
+    "connections": 25,
+    "R1Ohms": 1000,
+    "U1": "L7805"
+  },
+  "fixtureShift": {
+    "bom": 27,
+    "netlistComponents": 31,
+    "matched": 27,
+    "netlistOnly": [
+      "H1",
+      "H2",
+      "H3",
+      "H4"
+    ]
+  },
+  "unexecuted": [
+    "Actual QCV syntax/parse and Samsung circuit audit: sample/specification unavailable",
+    "Corporate SSO/design ownership authorization: policy/integration unspecified",
+    "Large production QCV performance and external Stage 03 client compatibility: no circuit/client available"
+  ],
+  "intermediateRuns": [
+    "Baseline 27/27 PASS",
+    "Focused 28 tests: 27 PASS, 1 new test assertion failed (D5 net 5 is pin 2, fixed using original public fixture)",
+    "Initial full fixed suite 48/48 PASS",
+    "Final full suite 51/51 PASS"
+  ],
+  "testedCodeCommit": "f7d376e177a4236945f5dbbd56405b510e57ec84"
+}
