@@ -19,7 +19,7 @@ Python3.12.14/Linux, MySQL8.0.43 Docker, FastAPI/SQLAlchemy/Streamlit. SQL V1~V4
 - `python -m ruff check circuitagent tests browser_tests`, `python -m build`: Python lint 및 wheel/sdist. 별도 위치에 wheel을 설치해 import·6 Rule·4 SQL 리소스를 검사했다.
 - Java/Gradle/Node/JUnit은 이번 Python 실행에 사용하지 않았다. 이전 Java103/React6/browser2 결과와 현재 테스트 수를 합산하지 않는다.
 
-Testcontainers는 실제 MySQL을 사용하고 Docker가 없으면 실패한다. 원본이 없으면 실패하며 fake 데이터로 대체/skip하지 않는다. 써드파티 Starlette TestClient의 httpx deprecation 경고는 테스트 실패가 아니며 현재 pinned 환경에서 정상 실행했다.
+이 문서의 기존162개 결과는 Docker 기반 이전 검증 기록이다. 현재 테스트는 직접 설치한 MySQL과 TEST_DB_* 전용 계정을 사용하며, 서버/계정이 없으면 실패한다. 최신 직접 설치 MySQL 실행 결과는 native-mysql-validation.md에 별도로 기록한다. 원본이 없으면 실패하며 fake 데이터로 대체/skip하지 않는다. 써드파티 Starlette TestClient의 httpx deprecation 경고는 테스트 실패가 아니며 현재 pinned 환경에서 정상 실행했다.
 
 ## 출처와 재현
 

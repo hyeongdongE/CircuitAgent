@@ -20,3 +20,5 @@ circuitagent-web
 단위 화면 테스트는 `cd backend` 후 `python -m pytest -q tests/test_web.py`. 실제 브라우저 테스트는 DB/API/화면을 실행하고 `python -m playwright install chromium`, `python -m pytest -q browser_tests`를 실행한다. Python Playwright 테스트는 API 응답 mock 없이 실제 공개 자료를 업로드한다.
 
 BOM은 CSV로 선택한다. 헤더가 표준 별칭과 다르면 선택적 컬럼 매핑 JSON을 입력한다. 행 수나 속성 컬럼 개수는 고정하지 않는다. 매핑 예제는 API 문서를 참고한다.
+
+Docker 없이 직접 설치한 MySQL로 실행한다. DB/테스트 계정 설정은 [native-mysql.md](native-mysql.md)를 참조한다. 브라우저 테스트는 실행 중인 로컬 API와 화면을 사용한다.

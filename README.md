@@ -37,14 +37,15 @@ python -m pip install --no-deps -e backend
 
 ## MySQL
 
-Docker가 실행된 상태에서 처음 한 번 실행합니다. 아래 비밀번호는 로컬 개발용 예시이며 두 터미널 설정과 일치시켜야 합니다.
+MySQL Community Server 8.0을 PC에 직접 설치하고 서비스를 시작합니다. Windows에서는 MySQL Configurator에서 TCP 포트3306을 지정하고, MySQL Workbench 또는 mysql 명령으로 관리자 접속 후 실행합니다. 아래 비밀번호는 로컬 예시이므로 변경하고 환경변수와 일치시킵니다.
 
-```sh
-docker run --name circuitagent-mysql -e MYSQL_ROOT_PASSWORD=poc-root-password -e MYSQL_DATABASE=circuitagent -e MYSQL_USER=circuitagent -e MYSQL_PASSWORD=poc-db-password -p 127.0.0.1:3306:3306 -d mysql:8.0.43
-docker logs circuitagent-mysql
+```sql
+CREATE DATABASE IF NOT EXISTS circuitagent CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'circuitagent'@'127.0.0.1' IDENTIFIED BY 'poc-db-password';
+GRANT ALL PRIVILEGES ON circuitagent.* TO 'circuitagent'@'127.0.0.1';
 ```
 
-`ready for connections`를 확인합니다. 재시작은 `docker start circuitagent-mysql`입니다. 기존 Java DB를 사용할 경우 [전환·DB 호환 문서](docs/python-migration.md)를 먼저 확인하세요.
+Docker나 Testcontainers 설치는 필요 없습니다. DB 설정·서비스 확인·전용 테스트 계정은 [직접 설치한 MySQL 가이드](docs/native-mysql.md)를 따릅니다. 기존 Java DB를 사용할 경우 [전환·DB 호환 문서](docs/python-migration.md)를 먼저 확인하세요.
 
 ## Backend — 터미널 1
 
@@ -93,7 +94,16 @@ python -m circuitagent.conversion .local/qcv-fixtures
 
 ## 테스트·패키징
 
-가상환경을 활성화하고 `backend`에서 실행합니다. MySQL 통합 테스트는 Testcontainers가 별도 MySQL을 생성하므로 Docker가 필요합니다. 원본이 없거나 Docker가 없으면 실패하며 가짜 데이터나 SQLite로 대체/자동 skip하지 않습니다.
+가상환경을 활성화하고 `backend`에서 실행합니다. MySQL 통합 테스트도 직접 설치한 서버를 사용합니다. 아래 전용 TEST_DB_* 환경변수를 먼저 설정하세요. 매 실행마다 circuitagent_test_<UUID> DB를 생성하고 종료 시 자신이 만든 DB만 삭제합니다. 원본이나 서버·테스트 계정이 없으면 실패하며 SQLite로 대체하거나 자동 skip하지 않습니다. 전용 계정 생성 SQL은 [MySQL 가이드](docs/native-mysql.md)에 있습니다.
+
+Windows PowerShell:
+
+```powershell
+$env:TEST_DB_HOST="127.0.0.1"
+$env:TEST_DB_PORT="3306"
+$env:TEST_DB_USERNAME="circuitagent_test"
+$env:TEST_DB_PASSWORD="poc-test-password"
+```
 
 ```sh
 python -m pytest -q tests

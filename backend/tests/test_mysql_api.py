@@ -1,36 +1,28 @@
-"""실제 MySQL 8 Testcontainers: 모델/원본/감사 결과의 복원, FK·롤백·API를 검증한다."""
+"""직접 설치한 MySQL 8: 모델/원본/감사 결과의 복원, FK·롤백·API를 검증한다."""
 
 from uuid import uuid4
 
 import pytest
 from conftest import DATA
 from fastapi.testclient import TestClient
+from mysql_support import isolated_mysql
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from testcontainers.community.mysql import MySqlContainer
 
 from circuitagent.api import create_app
 from circuitagent.audit import catalog, run_audit, snapshot_hash
-from circuitagent.database import CircuitStore, make_engine, migrate
+from circuitagent.database import CircuitStore, migrate
 from circuitagent.domain import CircuitDesign, wire
 from circuitagent.graph import CircuitGraph
 
 
 @pytest.fixture(scope="module")
 def store():
-    with MySqlContainer(
-        "mysql:8.0.43",
-        username="test",
-        password="test",
-        dbname="circuitagent",
-        dialect="pymysql",
-        docker_client_kw={"timeout": 240},
-    ) as container:
-        engine = make_engine(container.get_connection_url())
+    # 전용 계정으로 매 실행마다 새 DB를 만든다. 애플리케이션 DB 설정은 사용하지 않는다.
+    with isolated_mysql() as engine:
         migrate(engine)
         migrate(engine)  # 반복 실행은 schema/data를 중복 생성하지 않는다.
         yield CircuitStore(engine)
-        engine.dispose()
 
 
 def unique(design):
