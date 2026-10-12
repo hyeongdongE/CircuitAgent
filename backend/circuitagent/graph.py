@@ -167,6 +167,7 @@ class CircuitGraph:
         for ref in allowed:
             self.get_component(ref)
         visited, queue, edges = {start: 0}, deque([start]), {}
+        expanded_nets, expanded_components = set(), set()
         while queue:
             key = queue.popleft()
             depth = visited[key]
@@ -174,13 +175,18 @@ class CircuitGraph:
                 continue
             neighbors = []
             net = self.get_net_of_pin(key.reference, key.number)
-            if net:
+            # Net은 hyperedge다. 한 번만 펼쳐 고밀도 Net의 핀 쌍 전체(O(n²))를 생성하지 않는다.
+            if net and net.id not in expanded_nets:
+                expanded_nets.add(net.id)
                 neighbors.extend(
                     (p.key, "NET", net.id) for p in self.get_connected_pins(net.id) if p.key != key
                 )
-            if key.reference in allowed and (
-                include_dnp or self.get_component(key.reference).assembly_status != AssemblyStatus.DNP
+            if (
+                key.reference in allowed
+                and key.reference not in expanded_components
+                and (include_dnp or self.get_component(key.reference).assembly_status != AssemblyStatus.DNP)
             ):
+                expanded_components.add(key.reference)
                 neighbors.extend(
                     (p.key, "COMPONENT", key.reference)
                     for p in self.get_component_pins(key.reference)

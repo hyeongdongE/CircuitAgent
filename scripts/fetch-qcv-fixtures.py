@@ -2,8 +2,11 @@
 """체크섬이 고정된 공개 원본만 내려받는다. 회로 파싱과 XLSX 변환은 Java에서 수행한다.
 재배포 조건이 확인되지 않은 원본은 Git에서 제외된 .local에만 저장한다.
 """
+import hashlib
+import json
+import urllib.request
 from pathlib import Path
-import hashlib, json, urllib.request
+
 manifest = json.loads(Path(__file__).with_name('qcv-fixtures.json').read_text())
 output = Path(__file__).resolve().parent.parent / '.local/qcv-fixtures'
 output.mkdir(parents=True, exist_ok=True)

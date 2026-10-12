@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from time import perf_counter
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -44,7 +44,10 @@ class LocalBoundary:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not scope["path"].startswith("/api/"):
+        path = scope.get("path", "")
+        root_path = scope.get("root_path", "")
+        effective_path = path[len(root_path) :] if root_path and path.startswith(root_path) else path
+        if scope["type"] != "http" or not effective_path.startswith("/api/"):
             return await self.app(scope, receive, send)
         headers = dict(scope.get("headers", []))
         origin = headers.get(b"origin")
@@ -67,7 +70,9 @@ class LocalBoundary:
             return await error(403, "POC_ACCESS_DENIED", "Only local isolated PoC access is configured")(
                 scope, receive, send
             )
-        is_json = headers.get(b"content-type", b"").lower().startswith(b"application/json")
+        is_json = headers.get(b"content-type", b"").lower().startswith(b"application/json") or (
+            scope.get("method") == "POST" and effective_path.endswith("/audits")
+        )
         limit = 512 * 1024 if is_json else 20 * 1024 * 1024
         messages = []
         total = 0
@@ -300,7 +305,7 @@ def create_app(store=None):
                 parse_float=Decimal,
                 parse_constant=lambda s: (_ for _ in ()).throw(ValueError("Nonfinite JSON")),
             )
-        except (json.JSONDecodeError, UnicodeError) as exc:
+        except (json.JSONDecodeError, UnicodeError, DecimalException) as exc:
             raise ValueError("Invalid JSON") from exc
         req = AuditRequest.model_validate(body)
         if req.schema_version != "poc-rule-v1" or (req.rule_ids is None) == (req.rules is None):

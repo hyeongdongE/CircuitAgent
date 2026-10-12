@@ -1,7 +1,7 @@
 """전자부품 SI 단위 정규화. 실제 0과 미확인 None을 구분하고 Decimal만 사용한다."""
 
 import re
-from decimal import Decimal, localcontext
+from decimal import Decimal, DecimalException, localcontext
 
 from .domain import AttributeValue
 
@@ -30,7 +30,7 @@ UNITS = {
 }
 
 
-def normalize(raw: str, unit: str) -> AttributeValue:
+def _normalize(raw: str, unit: str) -> AttributeValue:
     if len(raw) > 128:
         raise ValueError("Engineering value exceeds 128 characters")
     value = raw.strip()
@@ -66,3 +66,11 @@ def normalize(raw: str, unit: str) -> AttributeValue:
         ctx.prec = 64
         number = number.scaleb(power).normalize()
     return AttributeValue(raw=raw, normalized=number, unit=unit)
+
+
+def normalize(raw: str, unit: str) -> AttributeValue:
+    """과도한 지수 등 Decimal 자체 파싱 오류도 입력 오류로 통일하여 원문/Issue를 보존한다."""
+    try:
+        return _normalize(raw, unit)
+    except DecimalException as exc:
+        raise ValueError("Invalid engineering decimal") from exc

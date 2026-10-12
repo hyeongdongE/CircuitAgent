@@ -57,6 +57,7 @@ def test_units(raw, unit, value):
         ("NaN", "Ω"),
         ("inf", "F"),
         ("1e999", "Ω"),
+        ("1e999999999999999999999999999999", "Ω"),
         ("2k%", "%"),
     ],
 )
@@ -355,3 +356,28 @@ def test_blank_net_and_conflicting_term(data):
     else:
         n = QcvNetlistParser().parse(data, "x.qcv")
         assert not n.connections and any(i.code == "AMBIGUOUS_CONNECTION" for i in n.issues)
+
+
+def test_large_own_zero_ohm_fixture_and_bounded_net_expansion():
+    # 자체 stress 입력이며 실제 Sparrow 검증 결과와 혼동하지 않는다.
+    refs = [f"R{i}" for i in range(1, 5001)]
+    bom = parse_bom(
+        ("References,Value,Quantity,DNP,MPN\n" + " ".join(refs) + ",0R,5000,no,OWN-PART\n").encode(),
+        "own.csv",
+    )
+    net = QcvNetlistParser().parse(
+        (
+            "NET: 'LEFT' "
+            + " ".join(r + "-1" for r in refs)
+            + "\nNET: 'RIGHT' "
+            + " ".join(r + "-2" for r in refs)
+            + "\n"
+        ).encode(),
+        "own.qcv",
+    )
+    g = CircuitGraph(assemble("Own stress fixture", "v1", bom, net))
+    assert len(g.design.components) == 5000 and len(g.design.connections) == 10000 and len(g.design.nets) == 2
+    assert g.get_component_attributes("R1")["Resistance"].normalized == 0
+    traversal = g.explore(PinKey(reference="R1", number="1"), 3, ["R1"])
+    assert len(traversal["pins"]) == 10000 and len(traversal["edges"]) <= 10000
+    assert g.get_net_of_pin("R1", "1").id != g.get_net_of_pin("R1", "2").id

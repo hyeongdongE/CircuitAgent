@@ -250,3 +250,50 @@ def test_chunked_json_budget(client):
         ).status_code
         == 413
     )
+
+
+@pytest.mark.parametrize("prefix", ["/prefix", "/different/path"])
+def test_root_path_does_not_bypass_policy(store, prefix):
+    with TestClient(create_app(store), root_path=prefix, client=("8.8.8.8", 5000)) as c:
+        assert c.get(prefix + "/api/audit-rules").status_code == 403
+
+
+def test_audit_limit_without_json_content_type(client):
+    assert (
+        client.post(
+            "/api/designs/" + str(uuid4()) + "/audits",
+            content=b" " * (512 * 1024 + 1),
+            headers={"Content-Type": "application/octet-stream"},
+        ).status_code
+        == 413
+    )
+
+
+def test_one_snapshot_per_audit(client, store, monkeypatch):
+    r = upload(client)
+    assert r.status_code == 201
+    original = store.load
+    loads = []
+
+    def tracked(id_):
+        loads.append(id_)
+        return original(id_)
+
+    monkeypatch.setattr(store, "load", tracked)
+    r = client.post(
+        "/api/designs/" + r.json()["id"] + "/audits",
+        json={"schemaVersion": "poc-rule-v1", "ruleIds": ["tps54302-c5-nominal", "tps54302-u16-en-network"]},
+    )
+    assert r.status_code == 201, r.text
+    assert len(loads) == 1
+
+
+def test_oversized_decimal_exponent_is_bad_input(client):
+    assert (
+        client.post(
+            "/api/designs/" + str(uuid4()) + "/audits",
+            content=b'{"foo":1e999999999999999999999999999999999999999999999}',
+            headers={"Content-Type": "application/json"},
+        ).status_code
+        == 400
+    )
