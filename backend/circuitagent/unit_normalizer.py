@@ -3,8 +3,9 @@
 import re
 from decimal import Decimal, DecimalException, localcontext
 
-from .domain import AttributeValue
+from .models import AttributeValue
 
+# SI 접두사 배수. 대문자 M(메가)과 소문자 m(밀리)은 다르다.
 POWERS = {
     "": 0,
     "R": 0,
@@ -19,6 +20,7 @@ POWERS = {
     "M": 6,
     "G": 9,
 }
+# 이 목록 또는 BOM 명시 units 매핑에 있는 물리량만 숫자로 변환한다.
 UNITS = {
     "Resistance": "Ω",
     "Capacitance": "F",
@@ -31,6 +33,7 @@ UNITS = {
 
 
 def _normalize(raw: str, unit: str) -> AttributeValue:
+    """1kΩ→1000Ω, 4R7→4.7Ω, 100nF→0.0000001F처럼 SI 기본 단위 Decimal로 변환한다."""
     if len(raw) > 128:
         raise ValueError("Engineering value exceeds 128 characters")
     value = raw.strip()
@@ -40,6 +43,7 @@ def _normalize(raw: str, unit: str) -> AttributeValue:
     value = re.sub(r"\s*" + suffix + "$", "", value).strip()
     if re.fullmatch(r"[+]?[0-9]+,[0-9]{1,2}(?:\s*[pnuµμmkKMG])?", value):
         value = value.replace(",", ".")
+    # RKM 표기는 소수점을 단위/접두사로 나타낸다: 4R7, 4u7, 6V3.
     embedded = re.fullmatch(r"([0-9]+)([pnuµμmkKMGRVA])([0-9]+)", value)
     power = 0
     if embedded and unit != "%":
@@ -57,6 +61,7 @@ def _normalize(raw: str, unit: str) -> AttributeValue:
         )
         if not match or unit == "%" and match[2]:
             raise ValueError("Cannot normalize engineering value as " + unit)
+        # float를 거치지 않아 작은 용량과 정밀한 저항값의 문자열 정밀도를 보존한다.
         number = Decimal(match[1])
         power = POWERS[match[2]]
     # 계산 환경의 기본 정밀도로 원문 숫자가 반올림되지 않도록 충분한 정밀도를 명시한다.

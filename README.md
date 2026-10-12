@@ -1,139 +1,69 @@
-# CircuitAgent — Python 통합 PoC
+# CircuitAgent — XLSX BOM + QCV 파싱 코어
 
-BOM Excel과 공개 PADS QCV/KiCad Netlist를 회로 모델로 만들고, 명시적인 데이터시트 Rule을 적용해 결과와 근거를 확인합니다. **Backend와 화면 모두 Python으로 작성**합니다.
+이 프로젝트는 **BOM.xlsx와 Netlist.qcv를 읽고 Reference로 결합해 연결 관계를 조회**하는 Python 코드다. 입력 형식은 두 가지로 고정한다. 회로 원본을 정확히 보존하고, 누락/중복/모호 연결은 Issue로 기록한다.
 
-- Python 3.12 권장(최소 3.11), FastAPI, Pydantic, SQLAlchemy, MySQL 8
-- Excel: openpyxl/XLSX, xlrd/XLS, 표준 csv / SI 단위는 Decimal
-- 화면: Streamlit, 브라우저 검증: Python Playwright
-- Graph: 불변 Snapshot + Map/Set 인덱스, 제한 깊이 BFS
-- Rule: 범위·속성 존재·Pin 연결·Net 일치·FB 조건부 계산, 다섯 상태와 Evidence
-- Java/Gradle/React/Node.js 설치는 필요하지 않습니다. Java 기준 버전은 Git `1a89f39`에 보존합니다.
+API 서버, DB, 웹 화면, Rule Checker, 다른 입력 형식 파서 및 관련 산출물은 이번 범위에서 제거했다. 이전 전체 PoC는 Git 이력에 보존되어 있다. 이 버전에는 프론트/백엔드 서버 실행 명령이 없으며 CLI로 파일을 처리한다.
 
-## 설치
+## 파일을 읽는 순서
 
-ZIP을 풀고 CircuitAgent 루트에서 실행합니다. 가상환경은 프로젝트 실행과 테스트에 모두 사용합니다.
+| 순서 | 파일 | 담당 기능 |
+| --- | --- | --- |
+| 1 | [cli.py](backend/circuitagent/cli.py) | 두 파일을 읽고 아래 함수들을 순서대로 호출하는 진입점 |
+| 2 | [models.py](backend/circuitagent/models.py) | 부품·사양·핀·Net·연결·Issue 데이터 구조 |
+| 3 | [bom_parser.py](backend/circuitagent/bom_parser.py) | XLSX 시트/헤더/행 → 부품 인스턴스와 동적 사양 |
+| 4 | [unit_normalizer.py](backend/circuitagent/unit_normalizer.py) | 1kΩ→1000Ω 등의 Decimal 단위 정규화 |
+| 5 | [netlist_parser.py](backend/circuitagent/netlist_parser.py) | QCV NET/PIN → Reference·핀·Net 연결 |
+| 6 | [circuit_graph.py](backend/circuitagent/circuit_graph.py) | Reference 통합과 연결 조회 인덱스 |
 
-Windows PowerShell:
+클래스/함수 docstring과 주요 분기 주석은 한국어로 작성했다. [처리 흐름 설명](docs/parsing-core.md)을 코드와 함께 읽는다.
+
+## 설치 및 실행
+
+Python3.12 권장(최소3.11). 프로젝트 루트의 Windows PowerShell:
 
 ```powershell
 py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install --require-hashes -r backend/requirements.lock
-python -m pip install --no-deps -e backend
+.\.venv\Scripts\python.exe -m pip install --require-hashes -r backend/requirements.lock
+.\.venv\Scripts\python.exe -m pip install --no-deps -e backend
+
+.\.venv\Scripts\python.exe -m circuitagent.cli --bom .local/qcv-fixtures/fe.xlsx --netlist .local/qcv-fixtures/fe.qcv --component U16 --pin 5 --output circuit.json
 ```
+
+본인 파일이면 `--bom`, `--netlist` 경로만 변경한다. 다른 형식 파일의 확장자를 바꾸는 것으로 변환되지 않는다. `--output`은 전체 통합 모델을 JSON으로 저장하는 선택 옵션이다. Decimal은 정밀 문자열로 출력한다. MySQL/Docker/브라우저를 설치할 필요가 없다.
 
 macOS/Linux:
 
 ```sh
 python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install --require-hashes -r backend/requirements.lock
-python -m pip install --no-deps -e backend
+.venv/bin/python -m pip install --require-hashes -r backend/requirements.lock
+.venv/bin/python -m pip install --no-deps -e backend
+.venv/bin/python -m circuitagent.cli --bom .local/qcv-fixtures/fe.xlsx --netlist .local/qcv-fixtures/fe.qcv --component U16 --pin 5
 ```
 
-`requirements.lock`은 API·화면·테스트 의존성을 모두 고정합니다. API만 필요하면 `python -m pip install -e backend`, 화면까지 설치하려면 `python -m pip install -e 'backend[ui]'`도 가능합니다.
+## 가변 XLSX 헤더
 
-## MySQL
+행 수와 컬럼 순서는 고정하지 않는다. 알려진 Reference/RefDes/Value 등의 별칭을 자동 식별하고, 알 수 없는 컬럼은 동적 속성으로 보존한다. 특이한 헤더는 다음 JSON을 `mapping.json`으로 저장한다:
 
-MySQL Community Server 8.0을 PC에 직접 설치하고 서비스를 시작합니다. Windows에서는 MySQL Configurator에서 TCP 포트3306을 지정하고, MySQL Workbench 또는 mysql 명령으로 관리자 접속 후 실행합니다. 아래 비밀번호는 로컬 예시이므로 변경하고 환경변수와 일치시킵니다.
-
-```sql
-CREATE DATABASE IF NOT EXISTS circuitagent CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'circuitagent'@'127.0.0.1' IDENTIFIED BY 'poc-db-password';
-GRANT ALL PRIVILEGES ON circuitagent.* TO 'circuitagent'@'127.0.0.1';
+```json
+{"columns":{"reference":"부품번호","value":"값","dnp":"장착제외"},"units":{"사용자 전압":"V"},"noMountBlank":"UNSPECIFIED"}
 ```
-
-Docker나 Testcontainers 설치는 필요 없습니다. DB 설정·서비스 확인·전용 테스트 계정은 [직접 설치한 MySQL 가이드](docs/native-mysql.md)를 따릅니다. 기존 Java DB를 사용할 경우 [전환·DB 호환 문서](docs/python-migration.md)를 먼저 확인하세요.
-
-## Backend — 터미널 1
-
-Windows PowerShell:
 
 ```powershell
-$env:DB_HOST="127.0.0.1"
-$env:DB_PORT="3306"
-$env:DB_NAME="circuitagent"
-$env:DB_USERNAME="circuitagent"
-$env:DB_PASSWORD="poc-db-password"
-$env:CIRCUITAGENT_MODE="local-poc"
-cd backend
-python -m uvicorn circuitagent.api:app --host 127.0.0.1 --port 8080 --no-proxy-headers
+.\.venv\Scripts\python.exe -m circuitagent.cli --bom BOM.xlsx --netlist Netlist.qcv --bom-mapping mapping.json
 ```
 
-macOS/Linux:
+핵심 필드는 Reference, 제조사, MPN, Type이며 나머지는 속성 Map이다. 누락은 None, 실제0은 Decimal(0)이다. 같은 MPN도 속성이 다르면 재사용하지 않는다. 수식은 계산하지 않고 오류로 거절한다. 셀 저장값을 읽으며 Excel 스타일 표시값을 재현하지 않는다.
 
-```sh
-export DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=circuitagent
-export DB_USERNAME=circuitagent DB_PASSWORD=poc-db-password CIRCUITAGENT_MODE=local-poc
-cd backend
-python -m uvicorn circuitagent.api:app --host 127.0.0.1 --port 8080 --no-proxy-headers
-```
+## 테스트
 
-시작 시 고정 SQL V1~V4를 검사·적용합니다. 테이블을 삭제하거나 ORM 자동 생성으로 바꾸지 않습니다. API 설명: http://127.0.0.1:8080/api/docs / Rule 확인: http://127.0.0.1:8080/api/audit-rules
-
-## 화면 — 터미널 2
-
-가상환경을 활성화하고 루트에서 실행합니다.
-
-```sh
-circuitagent-web
-```
-
-http://127.0.0.1:8501 에 접속합니다. Backend는 별도 터미널에서 실행된 상태여야 합니다. 다른 Backend 포트라면 `API_BASE_URL` 환경변수를 로컬 주소로 지정합니다.
-
-업로드 파일: `.local/qcv-fixtures/fe.csv`, `.local/qcv-fixtures/fe.qcv`. U16 → Pin 5 → U16_EN → R107/R83을 조회하고 Rule을 실행합니다. 기본 6 Rule의 기대 결과는 PASS1/UNKNOWN5입니다. EN 저항은 둘 다 DNP이며 실제 전압/도통을 정상으로 단정하지 않습니다.
-
-ZIP에는 실제 PoC 입력이 포함됩니다. Git으로 받은 경우 루트에서 준비합니다.
-
-```sh
-python scripts/fetch-qcv-fixtures.py
-python -m circuitagent.conversion .local/qcv-fixtures
-```
-
-## 테스트·패키징
-
-가상환경을 활성화하고 `backend`에서 실행합니다. MySQL 통합 테스트도 직접 설치한 서버를 사용합니다. 아래 전용 TEST_DB_* 환경변수를 먼저 설정하세요. 매 실행마다 circuitagent_test_<UUID> DB를 생성하고 종료 시 자신이 만든 DB만 삭제합니다. 원본이나 서버·테스트 계정이 없으면 실패하며 SQLite로 대체하거나 자동 skip하지 않습니다. 전용 계정 생성 SQL은 [MySQL 가이드](docs/native-mysql.md)에 있습니다.
-
-Windows PowerShell:
+프로젝트 루트 PowerShell:
 
 ```powershell
-$env:TEST_DB_HOST="127.0.0.1"
-$env:TEST_DB_PORT="3306"
-$env:TEST_DB_USERNAME="circuitagent_test"
-$env:TEST_DB_PASSWORD="poc-test-password"
+.\.venv\Scripts\python.exe -m pytest -q backend/tests
+.\.venv\Scripts\python.exe -m ruff check backend
+.\.venv\Scripts\python.exe -m build backend
 ```
 
-```sh
-python -m pytest -q tests
-python -m ruff check circuitagent tests browser_tests
-python -m build
-```
+실제3보드 입력은 ZIP의 `.local/qcv-fixtures`에 포함된다. Git에는 원본 이용 조건이 불명확해 파일 자체를 커밋하지 않으며, Git으로만 받은 경우 동일 체크섬의 XLSX/QCV를 해당 경로에 별도로 준비해야 한다. 실제 파일이 없으면 테스트는 실패하며 가짜 입력으로 대체하거나 skip하지 않는다. 출처/원본·파생 파일 체크섬은 [fixture-sources.json](backend/tests/fixture-sources.json)에 있다. BOM XLSX는 공개 설계 원본에서 이전 작업에 변환·검증한 파일이며 이번 코어에 다른 형식 파서/변환 코드는 포함하지 않는다.
 
-실제 브라우저 테스트는 MySQL, API(8080), 화면(8501)을 먼저 실행한 뒤 별도 터미널에서 진행합니다.
-
-```sh
-python -m playwright install chromium
-python -m pytest -q browser_tests
-```
-
-순수 파서·그래프·Rule 테스트만 실행할 때는 `python -m pytest -q tests/test_model_parsers.py tests/test_audit.py`로 범위를 명시합니다. 최신 Docker 없는 실행 결과는 [직접 설치 MySQL 검증](docs/native-mysql-validation.md)에 기록합니다.
-
-## 코드를 읽는 순서
-
-| 순서 | 파일 | 역할 |
-| --- | --- | --- |
-| 1 | [api.py](backend/circuitagent/api.py) | 업로드·조회·Audit HTTP 계약과 입력/로컬 경계 |
-| 2 | [domain.py](backend/circuitagent/domain.py) | 불변 Component/Part/Pin/Net/Issue 모델, 원문/정규값 분리 |
-| 3 | [bom.py](backend/circuitagent/bom.py), [netlist.py](backend/circuitagent/netlist.py) | CSV/XLSX/XLS·공개 QCV·KiCad 파싱 |
-| 4 | [graph.py](backend/circuitagent/graph.py) | Reference 통합·Pin/Net 탐색, Net 자동 병합 금지 |
-| 5 | [audit.py](backend/circuitagent/audit.py) | Decimal 비교·조건부 계산·UNKNOWN·Evidence |
-| 6 | [database.py](backend/circuitagent/database.py) | 기존 MySQL 스키마, 트랜잭션 저장·복원·버전 이력 |
-| 7 | [web.py](backend/circuitagent/web.py) | Python 화면, 서버 응답 표시·검색·업로드·검사 이력 |
-
-[전환·호환성](docs/python-migration.md) · [API](docs/api.md) · [화면](docs/frontend-guide.md) · [Stage 03 계약](docs/stage03-interface.md)
-
-공개 Sparrow QCV 형식에서 검증한 PoC입니다. 삼성 내부 QCV 변형, Stage01 실제 Parser, 기업 SSO/설계별 접근 권한은 미연동입니다. 로컬/격리된 환경에서 사용하며 인증 미구현 API를 공개 인터넷에 배포하지 않습니다. Excel 수식 셀은 계산하지 않고 거절하므로 먼저 값으로 변환해야 합니다. 외부 원본은 출처/체크섬 manifest로 관리하고 재배포 권한을 추정하지 않습니다.
-
-BOM 입력은 CSV를 기본으로 사용합니다. 행 수나 컬럼 순서를 고정하지 않으며, 알려진 컬럼 별칭은 자동 식별합니다. 특이한 헤더는 화면의 선택적 BOM 매핑 JSON 또는 API `bomMapping`으로 지정합니다. 알 수 없는 컬럼은 동적 속성으로 보존합니다. CSV의 부품 속성과 QCV의 연결정보를 Reference로 결합하며, BOM만으로 배선을 추정하지 않습니다. 매핑 예제와 불규칙 행 처리 정책은 [API 문서](docs/api.md)에 있습니다. XLSX/XLS는 호환 파서 및 회귀 테스트로 유지합니다.
+공개 Sparrow FE 기준: BOM445 / QCV453 / Reference매칭445 / Net335 / 연결1500 / TERM135 / NoMount51 / Issue80. QCV만의8개 부품도 보존한다. 실제 결과와 한계는 [검증 문서](docs/core-validation.md)에 기록한다.

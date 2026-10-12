@@ -1,8 +1,7 @@
-"""BOM CSV/XLSX/XLS 파서. 그룹 Reference를 펼치고 원문·위치·실장 상태를 보존한다."""
+"""BOM XLSX 파서. 그룹 Reference를 펼치고 원문·위치·실장 상태를 보존한다."""
 
 from __future__ import annotations
 
-import csv
 import io
 import json
 import re
@@ -11,12 +10,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Literal
+from xml.etree.ElementTree import ParseError
 
 import openpyxl
-import xlrd
 from pydantic import Field, model_validator
 
-from .domain import (
+from .models import (
     AssemblyStatus,
     AttributeValue,
     BomResult,
@@ -26,10 +25,9 @@ from .domain import (
     issue,
     wire,
 )
-from .units import UNITS, normalize
+from .unit_normalizer import UNITS, normalize
 
 MAX_BYTES = 10 * 1024 * 1024
-MAX_EXPANDED = 32 * 1024 * 1024
 MAX_ROWS, MAX_COLUMNS, MAX_CELLS, MAX_VALUES = 50_000, 256, 250_000, 500_000
 ALIASES = {
     **dict.fromkeys(
@@ -64,25 +62,30 @@ ALIASES = {
 
 
 def file_limit(data):
+    """입력 파일 크기가 10MiB 이내인지 확인한다. 큰 파일은 객체를 만들기 전에 거절한다."""
     if len(data) > MAX_BYTES:
         raise ValueError("Parser input exceeds 10 MiB")
 
 
 def clean(value):
+    """공백·빈 문자열·~를 누락(None)으로 바꾼다. 문자열 0은 실제 값이므로 유지한다."""
     return None if value is None or not value.strip() or value.strip() == "~" else value.strip()
 
 
 def canonical(header):
+    """알려진 컬럼 별칭만 공통 이름으로 바꾼다. 알 수 없는 컬럼 이름은 유지한다."""
     return ALIASES.get(re.sub("[^a-z0-9]", "", header.strip().lower()), header.strip())
 
 
 def catalogue(headers):
+    """공개 Sparrow 양식의 RefDes/QtyOnBoard 헤더를 확인한다. 모든 BOM에 적용하지 않는다."""
     keys = {re.sub("[^a-z0-9]", "", h.strip().lower()) for h in headers}
     return {"refdes", "qtyonboard"} <= keys
 
 
 def column(header, is_catalogue):
     # 내부 PartNumber와 Voltage는 제조사 MPN/정격이라고 자동 확정하지 않는다.
+    """양식별 컬럼 의미를 정한다. Sparrow 내부 PartNumber를 제조사 MPN으로 오인하지 않는다."""
     if is_catalogue and header.strip().lower() == "partnumber":
         return "Part Number"
     if is_catalogue and header.strip().lower() == "voltage":
@@ -96,11 +99,10 @@ class BomMapping(Model):
     columns: Mapping[str, str] = Field(default_factory=dict)
     units: Mapping[str, str] = Field(default_factory=dict)
     no_mount_blank: Literal["FITTED", "UNSPECIFIED"] | None = None
-    encoding: Literal["utf-8-sig", "utf-8", "cp949", "euc-kr", "cp1252"] = "utf-8-sig"
-    delimiter: Literal[",", ";", "\t"] | None = None
 
     @model_validator(mode="after")
     def checked(self):
+        """헤더 매핑과 단위를 검증한다. 한 컬럼에 서로 다른 의미를 부여할 수 없다."""
         if len(self.columns) > MAX_COLUMNS or len(self.units) > MAX_COLUMNS:
             raise ValueError("BOM mapping column budget exceeded")
         values = list(self.columns.values())
@@ -119,10 +121,12 @@ class BomMapping(Model):
 
 def logical_name(name):
     # 내부 품번/일반 Voltage를 제조사 MPN/정격으로 자동 승격하지 않는다.
+    """명시 매핑의 대상 이름을 정규화한다. 내부 품번과 일반 전압은 별도 속성으로 유지한다."""
     return name if name in {"Part Number", "Part Name", "Voltage"} else canonical(name)
 
 
 def schema(headers, config):
+    """실제 헤더→공통 필드 매핑을 만든다. 명시 매핑을 우선하고 충돌/Reference 누락을 거절한다."""
     explicit = {source: logical_name(target) for target, source in config.columns.items()}
     if any(h not in headers for h in explicit):
         raise ValueError("Mapped BOM source column is missing")
@@ -143,6 +147,7 @@ def schema(headers, config):
 
 
 def checked_headers(cells, config=None):
+    """원본 헤더의 중복과 필수 Reference 매핑을 검증한다. 헤더 순서를 변경하지 않는다."""
     if len([h for h in cells if h.strip()]) != len(set(h for h in cells if h.strip())):
         raise ValueError("Duplicate source BOM header")
     schema(cells, config or BomMapping())
@@ -151,6 +156,8 @@ def checked_headers(cells, config=None):
 
 @dataclass(frozen=True)
 class BomRow:
+    """한 행의 원본 컬럼 dict, 헤더 순서, 시트/행 위치, 이름 없는 추가 컬럼을 묶는다."""
+
     location: str
     raw: dict[str, str]
     headers: tuple[str, ...]
@@ -159,6 +166,7 @@ class BomRow:
 
 def row_map(headers, cells):
     # 짧은 행은 빈 셀을 보존한다. 헤더 없는 추가 값은 이름을 추측하지 않고 위치 이름+Issue로 보존한다.
+    """한 행을 헤더 이름 기반 dict로 바꾼다. 짧은 행은 빈 값, 추가 셀은 column:N으로 보존한다."""
     raw = {h: cells[i] if i < len(cells) else "" for i, h in enumerate(headers) if h.strip()}
     unnamed = []
     for i, value in enumerate(cells):
@@ -171,56 +179,29 @@ def row_map(headers, cells):
     return raw, tuple(unnamed)
 
 
-def csv_cells(data, delimiter=None, encoding="utf-8-sig"):
-    file_limit(data)
-    text = data.decode(encoding, errors="strict")
-    line = next((v for v in text.splitlines() if v.strip()), None)
-    if line is None:
-        raise ValueError("Empty BOM")
-    quoted, counts = False, {",": 0, ";": 0, "\t": 0}
-    for char in line:
-        if char == '"':
-            quoted = not quoted
-        elif not quoted and char in counts:
-            counts[char] += 1
-    delimiter = delimiter or (
-        "\t" if counts["\t"] > max(counts[","], counts[";"]) else ";" if counts[";"] > counts[","] else ","
-    )
-    # csv.reader는 quoted delimiter와 여러 줄 문자열을 표준 문법으로 읽는다.
+def validate_zip(data: bytes):
+    """XLSX 압축을 검사한다. 입력10MiB, 압축 해제32MiB, ZIP 항목1000개를 넘으면 거절한다."""
     try:
-        rows = []
-        total = 0
-        for row in csv.reader(io.StringIO(text, newline=""), delimiter=delimiter, strict=True):
-            if not row:
-                continue
-            total += len(row)
-            if len(rows) >= MAX_ROWS or total > MAX_CELLS or len(row) > MAX_COLUMNS:
-                raise ValueError("BOM row/column/cell limit exceeded")
-            rows.append(row)
-    except csv.Error as exc:
-        raise ValueError("Invalid CSV content") from exc
-    return rows
-
-
-def validate_zip(data):
-    # 압축 metadata와 실제 읽힌 bytes를 모두 검사해 XLSX ZIP bomb를 Workbook 할당 전에 차단한다.
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-            entries = z.infolist()
-            if len(entries) > 1000 or sum(e.file_size for e in entries) > MAX_EXPANDED:
-                raise ValueError("Excel expanded content limit exceeded")
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            entries = archive.infolist()
+            if len(entries) > 1000 or sum(e.file_size for e in entries) > 32 * 1024 * 1024:
+                raise ValueError("XLSX expanded content limit exceeded")
             total = 0
             for entry in entries:
-                with z.open(entry) as f:
-                    while chunk := f.read(8192):
+                with archive.open(entry) as source:
+                    while chunk := source.read(8192):
                         total += len(chunk)
-                        if total > MAX_EXPANDED:
-                            raise ValueError("Excel expanded content limit exceeded")
+                        if total > 32 * 1024 * 1024:
+                            raise ValueError("XLSX expanded content limit exceeded")
     except zipfile.BadZipFile as exc:
-        raise ValueError("Invalid Excel ZIP") from exc
+        raise ValueError("Invalid XLSX ZIP") from exc
 
 
-def cell_text(value):
+def cell_text(value) -> str:
+    """셀 저장값을 원문 문자열로 보존한다. 빈 셀은 빈 문자열, 실제 숫자0은 문자열0이다.
+
+    Excel 표시 스타일이나 수식 결과를 재계산하지 않는다. 단위 표시는 문자열 셀로 준비한다.
+    """
     if value is None:
         return ""
     if isinstance(value, bool):
@@ -232,73 +213,62 @@ def cell_text(value):
     return str(value)
 
 
-def rows_from_file(data, filename, config=None):
+def rows_from_file(data: bytes, filename: str, config=None) -> list[BomRow]:
+    """모든 시트를 읽고 Reference 컬럼이 있는 헤더를 찾아 각 데이터 행을 dict로 바꾼다.
+
+    헤더 위의 설명 행은 건너뛰며 행 수/컬럼 순서를 고정하지 않는다.
+    출처는 sheet:시트이름:row:Excel행번호로 기록한다. 수식은 값으로 오인하지 않고 거절한다.
+    """
     config = config or BomMapping()
     file_limit(data)
-    ext = filename.lower().rsplit(".", 1)[-1]
-    if ext == "csv":
-        rows = csv_cells(data, config.delimiter, config.encoding)
-        headers = checked_headers(rows[0], config)
-        result = []
-        for index, row in enumerate(rows[1:], 2):
-            if any(c.strip() for c in row):
-                raw, unnamed = row_map(headers, row)
-                result.append(BomRow(f"csv:record:{index}", raw, tuple(headers), unnamed))
-        return result
-    if ext not in {"xlsx", "xls"}:
-        raise ValueError("Supported BOM formats: CSV, XLSX, XLS")
-    expected = b"PK\x03\x04" if ext == "xlsx" else b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
-    if not data.startswith(expected):
-        raise ValueError("Excel content does not match filename extension")
-    budget, result, found = 0, [], False
-    if ext == "xlsx":
-        validate_zip(data)
-        workbook = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=False)
-        sheets = [(s.title, s.iter_rows()) for s in workbook]
-    else:
-        workbook = xlrd.open_workbook(file_contents=data, on_demand=True)
-
-        def xls_rows(sheet):
-            for row in range(sheet.nrows):
-                yield [sheet.cell(row, col) for col in range(sheet.ncols)]
-
-        sheets = [(sheet.name, xls_rows(sheet)) for sheet in workbook.sheets()]
+    if not filename.lower().endswith(".xlsx"):
+        raise ValueError("BOM input must be XLSX")
+    if not data.startswith(b"PK\x03\x04"):
+        raise ValueError("XLSX content does not match filename extension")
+    validate_zip(data)
     try:
-        for title, rows in sheets:
+        workbook = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=False)
+    except (KeyError, ValueError, OSError, ParseError) as exc:
+        raise ValueError("Invalid XLSX workbook structure") from exc
+    result, budget, found = [], 0, False
+    try:
+        for sheet in workbook:
             headers = None
-            for index, cells in enumerate(rows, 1):
+            for index, cells in enumerate(sheet.iter_rows(), 1):
                 if index > MAX_ROWS or len(cells) > MAX_COLUMNS:
                     raise ValueError("BOM row/column limit exceeded")
                 budget += len(cells)
                 if budget > MAX_CELLS:
                     raise ValueError("BOM cell limit exceeded")
-                # openpyxl은 POI처럼 수식을 계산하지 않는다. 수식을 값으로 잘못 해석하지 않고 명시 거절한다.
-                if ext == "xlsx" and any(c.data_type == "f" for c in cells):
-                    raise ValueError(
-                        "Formula cells require explicit values; Python importer does not evaluate Excel formulas"
-                    )
+                if any(c.data_type == "f" for c in cells):
+                    raise ValueError("Formula cells require explicit values; formulas are not evaluated")
                 values = [cell_text(c.value) for c in cells]
                 if headers is None:
-                    mapped_ref = config.columns.get("reference") or config.columns.get("Reference")
-                    if any(canonical(c) == "reference" for c in values) or mapped_ref in values:
+                    # 자동 별칭 또는 명시적으로 Reference에 매핑한 헤더만 식별한다.
+                    mapped = {
+                        source
+                        for target, source in config.columns.items()
+                        if logical_name(target) == "reference"
+                    }
+                    if any(canonical(v) == "reference" or v in mapped for v in values):
                         headers = checked_headers(values, config)
                         found = True
                     continue
                 raw, unnamed = row_map(headers, values)
                 if any(v.strip() for v in raw.values()):
-                    result.append(BomRow(f"sheet:{title}:row:{index}", raw, tuple(headers), unnamed))
+                    result.append(BomRow(f"sheet:{sheet.title}:row:{index}", raw, tuple(headers), unnamed))
     finally:
-        if ext == "xlsx":
-            workbook.close()
-        else:
-            workbook.release_resources()
+        workbook.close()
     if not found:
-        raise ValueError("BOM Reference column required")
+        raise ValueError("BOM Reference column or explicit reference mapping required")
     return result
 
 
 def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
+    """XLSX 데이터를 BomResult로 변환한다. 각 Reference를 개별 ComponentInstance로 만들고 사양/원문/Issue를 보존한다."""
     config = mapping if isinstance(mapping, BomMapping) else BomMapping.model_validate(mapping or {})
+    # components는 Reference별 인스턴스, specifications는 UUID별 사양이다.
+    # variants는 동일 품번의 사양 재사용 후보이며, issues는 원본의 문제를 누적한다.
     components, specifications, variants, issues = {}, {}, {}, []
     rows = rows_from_file(data, filename, config)
     source_headers = []
@@ -311,6 +281,7 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
         if references is None:
             issues.append(issue("MISSING_REFERENCE", source=location, error=True))
             continue
+        # 한 행에 R1,R2 또는 R1 R2가 들어 있어도 개별 부품으로 펼친다.
         refs = [r for r in re.split(r"[,;\s]+", references) if r]
         quantity = clean(fields.get("quantity"))
         if quantity is not None:
@@ -323,6 +294,7 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
             except (ValueError, InvalidOperation):
                 issues.append(issue("PARSE_FAILURE", references, location, "Invalid quantity", True))
         for ref in refs:
+            # 중복 Reference는 첫 원본을 유지한다. 뒤 행으로 조용히 덮어쓰지 않는다.
             if ref in components:
                 issues.append(issue("DUPLICATE_REFERENCE", ref, location, "First instance retained", True))
                 continue
@@ -341,6 +313,8 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
             if value is None:
                 issues.append(issue("MISSING_VALUE", ref, location))
             type_ = clean(fields.get("type"))
+            # R/C/L+숫자의 통상 명명 규칙만 수동 소자 단위 해석에 사용한다.
+            # 이 분류는 제조사/MPN 신원 확인이나 회로 기능 판정이 아니다.
             if type_ is None:
                 type_ = next(
                     (
@@ -354,6 +328,7 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
                 type_ = type_.lower()
 
             def placement(raw_flag, no_mount=False):
+                """DNP/NoMount 원문을 실장 상태로 변환한다. 알 수 없는 값은 미확정으로 유지한다."""
                 flag = clean(raw_flag)
                 if flag is None:
                     if no_mount:
@@ -393,6 +368,7 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
                 mounted = AssemblyStatus.UNSPECIFIED
 
             def attribute(key, raw_value):
+                """단위가 확인된 속성만 Decimal로 정규화한다. 실패해도 원문을 남기고 Issue를 추가한다."""
                 unit = config.units.get(key, UNITS.get(key))
                 if unit is None:
                     return AttributeValue(raw=raw_value)
@@ -402,6 +378,7 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
                     issues.append(issue("INVALID_UNIT", ref, location, "Invalid " + key + " unit"))
                     return AttributeValue(raw=raw_value)
 
+            # 고정 핵심 필드 외의 비어 있지 않은 컬럼을 모두 동적 속성으로 보존한다.
             attributes = {
                 k: attribute(k, v)
                 for k, v in fields.items()
@@ -441,10 +418,12 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
                 if catalogue_part
                 else None
             )
+            # 같은 MPN/내부 품번이어도 속성이 다르면 별도 사양과 충돌 Issue를 만든다.
             if identity:
                 existing = variants.setdefault(identity, [])
 
                 def equivalent(other):
+                    """같은 품번이어도 유형과 전체 속성이 같은 경우에만 사양 객체를 재사용한다."""
                     if other.type != spec.type or other.attributes.keys() != spec.attributes.keys():
                         return False
                     return all(
@@ -490,7 +469,7 @@ def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
         issues=issues,
         source_metadata={
             "bomFormat": filename.lower().rsplit(".", 1)[-1],
-            "bomEncoding": config.encoding if filename.lower().endswith(".csv") else "workbook",
+            "bomEncoding": "XLSX workbook",
             "bomRowCount": str(len(rows)),
             "bomColumns": json.dumps(source_headers, ensure_ascii=False),
             "bomMapping": json.dumps(wire(config), ensure_ascii=False, sort_keys=True),

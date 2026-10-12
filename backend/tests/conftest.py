@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from circuitagent.bom import parse_bom
-from circuitagent.graph import CircuitGraph, assemble
-from circuitagent.netlist import QcvNetlistParser
+from circuitagent.bom_parser import parse_bom
+from circuitagent.circuit_graph import CircuitGraph, assemble
+from circuitagent.netlist_parser import QcvNetlistParser
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / ".local/qcv-fixtures"

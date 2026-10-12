@@ -1,26 +1,27 @@
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
 [project]
 name = "circuitagent"
-version = "0.2.0"
-description = "BOM/QCV circuit modeling and deterministic audit Python PoC"
+version = "0.3.0"
+description = "XLSX BOM and QCV netlist parsing and connectivity core"
 requires-python = ">=3.11"
-dependencies = ["fastapi==0.143.0", "uvicorn==0.54.0", "sqlalchemy==2.1.4", "pymysql==1.2.3", "cryptography==50.0.2", "pydantic==2.14.1", "python-multipart==0.0.32", "openpyxl==3.1.5", "xlrd==2.0.2"]
+dependencies = ["pydantic==2.14.1", "openpyxl==3.1.5"]
+
 [project.optional-dependencies]
-ui = ["streamlit==1.65.0", "requests==2.34.2"]
-test = ["pytest==9.1.1", "httpx==0.28.1", "xlwt==1.3.0", "ruff==0.17.0", "build==1.6.1", "playwright==1.63.0"]
+test = ["pytest==9.1.1", "ruff==0.17.0", "build==1.6.1"]
+
 [project.scripts]
-circuitagent-web = "circuitagent.web:main"
-circuitagent-convert = "circuitagent.conversion:main"
+circuitagent-parse = "circuitagent.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["circuitagent*"]
-[tool.setuptools.package-data]
-circuitagent = ["resources/db/migration/*.sql", "resources/poc/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-filterwarnings = ["ignore:Workbook contains no default style:UserWarning"]
+
 [tool.ruff]
 line-length = 110
 

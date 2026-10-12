@@ -1,1 +1,1 @@
-"""CircuitAgent Python: 공개 회로 모델링과 명시 근거 기반 결정론적 Audit PoC."""
+"""CircuitAgent: XLSX BOM과 QCV Netlist를 연결하는 Python 파싱 코어."""
