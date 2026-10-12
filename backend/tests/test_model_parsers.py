@@ -9,14 +9,15 @@ from pathlib import Path
 import openpyxl
 import pytest
 import xlwt
+from conftest import DATA, ROOT
+from pydantic import ValidationError
+
 from circuitagent.bom import MAX_BYTES, csv_cells, parse_bom
 from circuitagent.conversion import convert
 from circuitagent.domain import CircuitDesign, PinKey, wire
 from circuitagent.graph import CircuitGraph, assemble
 from circuitagent.netlist import KiCadNetlistParser, QcvNetlistParser, sexpression
 from circuitagent.units import normalize
-from conftest import DATA, ROOT
-from pydantic import ValidationError
 
 
 @pytest.mark.parametrize(
@@ -173,7 +174,6 @@ def test_excel(kind):
         (b"", "bom.csv"),
         (b"Value\n1k", "bom.csv"),
         (b"Reference,Ref\nR1,R2", "bom.csv"),
-        (b"Reference\nR1,extra", "bom.csv"),
         (b"bad", "bom.xlsx"),
         (b"bad", "bom.xls"),
         (b"\xff", "bom.csv"),

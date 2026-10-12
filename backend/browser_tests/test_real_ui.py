@@ -18,7 +18,7 @@ def test_real_upload_graph_audit_history():
         page.goto("http://127.0.0.1:8501")
         page.get_by_label("설계 이름", exact=True).fill("Python browser " + str(time()))
         page.get_by_test_id("stFileUploader").nth(0).locator("input[type=file]").set_input_files(
-            str(ROOT / ".local/qcv-fixtures/fe.xlsx")
+            str(ROOT / ".local/qcv-fixtures/fe.csv")
         )
         page.get_by_test_id("stFileUploader").nth(1).locator("input[type=file]").set_input_files(
             str(ROOT / ".local/qcv-fixtures/fe.qcv")
@@ -32,6 +32,7 @@ def test_real_upload_graph_audit_history():
         expect(page.get_by_text("U16 · FITTED · Value: 미확인 · MPN: 미확인", exact=True)).to_be_visible()
         # Streamlit selectbox는 실제 데이터의 Pin 번호를 선택한다. IC 기능 이름을 추정하지 않는다.
         box = page.get_by_test_id("stSelectbox").filter(has_text="연결 Pin 선택")
+        expect(page.get_by_test_id("stApp")).to_have_attribute("data-test-script-state", "notRunning")
         box.locator("input").click()
         page.get_by_role("option", name="5", exact=True).click()
         expect(page.get_by_text("Net: U16_EN", exact=True)).to_be_visible()
@@ -54,6 +55,6 @@ def test_mobile_missing_upload():
         page = browser.new_page(viewport={"width": 390, "height": 844})
         page.goto("http://127.0.0.1:8501")
         page.get_by_role("button", name="회로 업로드", exact=True).click()
-        expect(page.get_by_text("BOM XLSX와 QCV 파일을 모두 선택하세요.", exact=True)).to_be_visible()
+        expect(page.get_by_text("BOM CSV와 QCV 파일을 모두 선택하세요.", exact=True)).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         browser.close()

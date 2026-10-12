@@ -1,5 +1,6 @@
 """Python으로 작성한 최소 회로/Audit 화면. REST가 반환한 사실만 표시한다."""
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -53,12 +54,17 @@ def render():
     with st.form("upload"):
         name = st.text_input("설계 이름", value="Sparrow FE", max_chars=191)
         version = st.text_input("설계 버전", value="R3", max_chars=64)
-        bom = st.file_uploader("BOM XLSX", type=["xlsx"])
+        bom = st.file_uploader("BOM CSV", type=["csv"])
         net = st.file_uploader("QCV Netlist", type=["qcv"])
+        mapping_text = st.text_area(
+            "BOM 컬럼 매핑 JSON (선택)",
+            value="",
+            help='예: {"columns":{"reference":"부품번호","value":"값"},"units":{"Custom Voltage":"V"}}',
+        )
         submitted = st.form_submit_button("회로 업로드")
     if submitted:
         if bom is None or net is None:
-            st.error("BOM XLSX와 QCV 파일을 모두 선택하세요.")
+            st.error("BOM CSV와 QCV 파일을 모두 선택하세요.")
         elif bom.size > 10 * 1024 * 1024 or net.size > 10 * 1024 * 1024:
             st.error("각 파일은 10 MiB 이하이어야 합니다.")
         else:
@@ -67,7 +73,16 @@ def render():
                     r = api.call(
                         "/api/designs/import",
                         "POST",
-                        data={"name": name, "version": version, "netlistFormat": "qcv"},
+                        data={
+                            "name": name,
+                            "version": version,
+                            "netlistFormat": "qcv",
+                            **(
+                                {"bomMapping": json.dumps(json.loads(mapping_text), ensure_ascii=False)}
+                                if mapping_text.strip()
+                                else {}
+                            ),
+                        },
                         files={"bom": (bom.name, bom.getvalue()), "netlist": (net.name, net.getvalue())},
                     )
                 if r["id"] not in ids:

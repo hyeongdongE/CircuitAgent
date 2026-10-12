@@ -82,7 +82,7 @@ circuitagent-web
 
 http://127.0.0.1:8501 에 접속합니다. Backend는 별도 터미널에서 실행된 상태여야 합니다. 다른 Backend 포트라면 `API_BASE_URL` 환경변수를 로컬 주소로 지정합니다.
 
-업로드 파일: `.local/qcv-fixtures/fe.xlsx`, `.local/qcv-fixtures/fe.qcv`. U16 → Pin 5 → U16_EN → R107/R83을 조회하고 Rule을 실행합니다. 기본 6 Rule의 기대 결과는 PASS1/UNKNOWN5입니다. EN 저항은 둘 다 DNP이며 실제 전압/도통을 정상으로 단정하지 않습니다.
+업로드 파일: `.local/qcv-fixtures/fe.csv`, `.local/qcv-fixtures/fe.qcv`. U16 → Pin 5 → U16_EN → R107/R83을 조회하고 Rule을 실행합니다. 기본 6 Rule의 기대 결과는 PASS1/UNKNOWN5입니다. EN 저항은 둘 다 DNP이며 실제 전압/도통을 정상으로 단정하지 않습니다.
 
 ZIP에는 실제 PoC 입력이 포함됩니다. Git으로 받은 경우 루트에서 준비합니다.
 
@@ -125,3 +125,5 @@ python -m pytest -q browser_tests
 [전환·호환성](docs/python-migration.md) · [API](docs/api.md) · [화면](docs/frontend-guide.md) · [Stage 03 계약](docs/stage03-interface.md)
 
 공개 Sparrow QCV 형식에서 검증한 PoC입니다. 삼성 내부 QCV 변형, Stage01 실제 Parser, 기업 SSO/설계별 접근 권한은 미연동입니다. 로컬/격리된 환경에서 사용하며 인증 미구현 API를 공개 인터넷에 배포하지 않습니다. Excel 수식 셀은 계산하지 않고 거절하므로 먼저 값으로 변환해야 합니다. 외부 원본은 출처/체크섬 manifest로 관리하고 재배포 권한을 추정하지 않습니다.
+
+BOM 입력은 CSV를 기본으로 사용합니다. 행 수나 컬럼 순서를 고정하지 않으며, 알려진 컬럼 별칭은 자동 식별합니다. 특이한 헤더는 화면의 선택적 BOM 매핑 JSON 또는 API `bomMapping`으로 지정합니다. 알 수 없는 컬럼은 동적 속성으로 보존합니다. CSV의 부품 속성과 QCV의 연결정보를 Reference로 결합하며, BOM만으로 배선을 추정하지 않습니다. 매핑 예제와 불규칙 행 처리 정책은 [API 문서](docs/api.md)에 있습니다. XLSX/XLS는 호환 파서 및 회귀 테스트로 유지합니다.

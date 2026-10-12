@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 
 def main():
     root = Path(__file__).resolve().parents[1]
-    bom = (root / ".local/qcv-fixtures/fe.xlsx").read_bytes()
+    bom = (root / ".local/qcv-fixtures/fe.csv").read_bytes()
     net = (root / ".local/qcv-fixtures/fe.qcv").read_bytes()
     engine = make_engine()
     store = CircuitStore(engine)
@@ -36,30 +36,48 @@ def main():
         with TestClient(create_app(store), client=("127.0.0.1", 50000)) as client:
             for _ in range(3):
                 times = {}
-                b = measure(times, "bomParsingMs", lambda: parse_bom(bom, "fe.xlsx"))
-                n = measure(times, "qcvParsingMs", lambda: QcvNetlistParser().parse(net, "fe.qcv"))
+                b = measure(times, "bomParsingMs", lambda: parse_bom(bom, "fe.csv"))
+                n = measure(
+                    times,
+                    "qcvParsingMs",
+                    lambda: QcvNetlistParser().parse(net, "fe.qcv"),
+                )
                 d = measure(
-                    times, "integrationMs", lambda: assemble("Python benchmark " + str(uuid4()), "R3", b, n)
+                    times,
+                    "integrationMs",
+                    lambda: assemble("Python benchmark " + str(uuid4()), "R3", b, n),
                 )
                 g = measure(times, "graphConstructionMs", lambda: CircuitGraph(d))
                 measure(
                     times,
                     "mysqlPersistenceMs",
-                    lambda: store.save(d, [("bom", "fe.xlsx", bom), ("netlist", "fe.qcv", net)]),
+                    lambda: store.save(
+                        d, [("bom", "fe.csv", bom), ("netlist", "fe.qcv", net)]
+                    ),
                 )
-                g = measure(times, "snapshotLoadMs", lambda: CircuitGraph(store.load(d.id)))
+                g = measure(
+                    times, "snapshotLoadMs", lambda: CircuitGraph(store.load(d.id))
+                )
                 rules = measure(
-                    times, "ruleValidationMs", lambda: StructuredRuleAdapter().validate(catalog()[1])
+                    times,
+                    "ruleValidationMs",
+                    lambda: StructuredRuleAdapter().validate(catalog()[1]),
                 )
                 measure(
                     times,
                     "circuitTraversalMs",
-                    lambda: g.get_connected_pins(g.get_pin_context("U16", "5")["net"].id),
+                    lambda: g.get_connected_pins(
+                        g.get_pin_context("U16", "5")["net"].id
+                    ),
                 )
-                audit = measure(times, "ruleEvaluationIncludingHashMs", lambda: run_audit(g, rules))
+                audit = measure(
+                    times, "ruleEvaluationIncludingHashMs", lambda: run_audit(g, rules)
+                )
                 measure(times, "auditPersistenceMs", lambda: store.save_audit(audit))
                 r = measure(
-                    times, "auditApiResponseMs", lambda: client.get(f"/api/designs/{d.id}/audits/{audit.id}")
+                    times,
+                    "auditApiResponseMs",
+                    lambda: client.get(f"/api/designs/{d.id}/audits/{audit.id}"),
                 )
                 assert r.status_code == 200
                 samples.append(times)

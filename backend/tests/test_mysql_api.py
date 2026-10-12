@@ -3,16 +3,17 @@
 from uuid import uuid4
 
 import pytest
-from circuitagent.api import create_app
-from circuitagent.audit import catalog, run_audit, snapshot_hash
-from circuitagent.database import CircuitStore, make_engine, migrate
-from circuitagent.domain import CircuitDesign, wire
-from circuitagent.graph import CircuitGraph
 from conftest import DATA
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from testcontainers.community.mysql import MySqlContainer
+
+from circuitagent.api import create_app
+from circuitagent.audit import catalog, run_audit, snapshot_hash
+from circuitagent.database import CircuitStore, make_engine, migrate
+from circuitagent.domain import CircuitDesign, wire
+from circuitagent.graph import CircuitGraph
 
 
 @pytest.fixture(scope="module")
@@ -118,7 +119,7 @@ def upload(client, name=None):
         "/api/designs/import",
         data={"name": name or "API " + str(uuid4()), "version": "R3", "netlistFormat": "qcv"},
         files={
-            "bom": ("fe.xlsx", (DATA / "fe.xlsx").read_bytes()),
+            "bom": ("fe.csv", (DATA / "fe.csv").read_bytes()),
             "netlist": ("fe.qcv", (DATA / "fe.qcv").read_bytes()),
         },
     )
@@ -297,3 +298,42 @@ def test_oversized_decimal_exponent_is_bad_input(client):
         ).status_code
         == 400
     )
+
+
+def test_dynamic_csv_mapping_api(client, store):
+    import json
+
+    mapping = {
+        "columns": {"reference": "부품번호", "value": "값", "Custom Voltage": "전압"},
+        "units": {"Custom Voltage": "V"},
+    }
+    bom = "메모,전압,값,부품번호\nhello,3.3V,10k,R1 R2\n".encode()
+    r = client.post(
+        "/api/designs/import",
+        data={"name": "Mapped " + str(uuid4()), "netlistFormat": "qcv", "bomMapping": json.dumps(mapping)},
+        files={"bom": ("bom.csv", bom), "netlist": ("net.qcv", b"NET : 'signal' R1-1 R2-1\n")},
+    )
+    assert r.status_code == 201, r.text
+    d = store.load(r.json()["id"])
+    assert set(d.components) == {"R1", "R2"}
+    assert json.loads(d.source_metadata["bomColumns"]) == ["메모", "전압", "값", "부품번호"]
+    for c in d.components.values():
+        assert c.raw_sources["bom"]["메모"] == "hello"
+        a = d.specifications[c.part_specification_id].attributes
+        assert str(a["Custom Voltage"].normalized) == "3.3"
+    g = CircuitGraph(d)
+    assert g.get_pin_context("R1", "1")["net"].name == "signal"
+    assert {p.key.reference for p in g.get_connected_pins(next(iter(d.nets)))} == {"R1", "R2"}
+
+
+@pytest.mark.parametrize("mapping", ["not-json", '{"columns":{"reference":"missing"}}'])
+def test_invalid_csv_mapping_api(client, mapping):
+    r = client.post(
+        "/api/designs/import",
+        data={"name": "Bad mapping", "netlistFormat": "qcv", "bomMapping": mapping},
+        files={
+            "bom": ("bom.csv", b"Reference,Value\nR1,1k\n"),
+            "netlist": ("net.qcv", b"NET : 'signal' R1-1\n"),
+        },
+    )
+    assert r.status_code == 400, r.text

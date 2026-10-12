@@ -163,6 +163,7 @@ class BomResult(Model):
     components: Mapping[str, ComponentInstance]
     specifications: Mapping[UUID, PartSpecification]
     issues: tuple[ImportIssue, ...] = ()
+    source_metadata: Mapping[str, str] = Field(default_factory=dict)
 
 
 class NetlistResult(BomResult):

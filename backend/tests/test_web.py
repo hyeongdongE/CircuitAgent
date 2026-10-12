@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 import requests
-from circuitagent.web import ApiClient
 from streamlit.testing.v1 import AppTest
+
+from circuitagent.web import ApiClient
 
 
 @pytest.mark.parametrize(
@@ -42,7 +43,7 @@ def test_empty_screen_and_missing_files():
     test = AppTest.from_file(str(Path(__file__).parents[1] / "circuitagent/web.py")).run(timeout=20)
     assert not test.exception and test.title[0].value == "회로와 검증 근거"
     test.button[0].click().run(timeout=20)
-    assert not test.exception and test.error[0].value == "BOM XLSX와 QCV 파일을 모두 선택하세요."
+    assert not test.exception and test.error[0].value == "BOM CSV와 QCV 파일을 모두 선택하세요."
 
 
 def test_connection_failure(monkeypatch):

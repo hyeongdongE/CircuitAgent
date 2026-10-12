@@ -4,14 +4,28 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import re
 import zipfile
+from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from typing import Literal
 
 import openpyxl
 import xlrd
+from pydantic import Field, model_validator
 
-from .domain import AssemblyStatus, AttributeValue, BomResult, ComponentInstance, PartSpecification, issue
+from .domain import (
+    AssemblyStatus,
+    AttributeValue,
+    BomResult,
+    ComponentInstance,
+    Model,
+    PartSpecification,
+    issue,
+    wire,
+)
 from .units import UNITS, normalize
 
 MAX_BYTES = 10 * 1024 * 1024
@@ -76,24 +90,90 @@ def column(header, is_catalogue):
     return canonical(header)
 
 
-def checked_headers(cells):
-    if not any(canonical(c) == "reference" for c in cells):
-        raise ValueError("BOM Reference column required")
-    keys = [column(c, catalogue(cells)) for c in cells if c.strip()]
-    if len(keys) != len(set(keys)):
-        raise ValueError("Ambiguous duplicate BOM column")
+class BomMapping(Model):
+    """자동 별칭으로 알 수 없는 헤더는 명시적으로 의미를 지정한다. 나머지 열은 모두 동적 속성이다."""
+
+    columns: Mapping[str, str] = Field(default_factory=dict)
+    units: Mapping[str, str] = Field(default_factory=dict)
+    no_mount_blank: Literal["FITTED", "UNSPECIFIED"] | None = None
+    encoding: Literal["utf-8-sig", "utf-8", "cp949", "euc-kr", "cp1252"] = "utf-8-sig"
+    delimiter: Literal[",", ";", "\t"] | None = None
+
+    @model_validator(mode="after")
+    def checked(self):
+        if len(self.columns) > MAX_COLUMNS or len(self.units) > MAX_COLUMNS:
+            raise ValueError("BOM mapping column budget exceeded")
+        values = list(self.columns.values())
+        if len(set(values)) != len(values):
+            raise ValueError("One source column cannot have conflicting roles")
+        for k, v in [*self.columns.items(), *self.units.items()]:
+            if not k.strip() or not v.strip() or len(k) > 512 or len(v) > 512:
+                raise ValueError("Explicit bounded BOM mapping names required")
+        for k, v in self.units.items():
+            if v not in {"Ω", "F", "H", "V", "A", "%"}:
+                raise ValueError("Unsupported explicit attribute unit")
+            if k in UNITS and v != UNITS[k]:
+                raise ValueError("Known physical attribute has incompatible unit")
+        return self
+
+
+def logical_name(name):
+    # 내부 품번/일반 Voltage를 제조사 MPN/정격으로 자동 승격하지 않는다.
+    return name if name in {"Part Number", "Part Name", "Voltage"} else canonical(name)
+
+
+def schema(headers, config):
+    explicit = {source: logical_name(target) for target, source in config.columns.items()}
+    if any(h not in headers for h in explicit):
+        raise ValueError("Mapped BOM source column is missing")
+    mapped = {}
+    claimed = set(explicit.values())
+    for h in headers:
+        if not h.strip():
+            continue
+        target = explicit.get(h, column(h, catalogue(headers)))
+        if h not in explicit and target in claimed:
+            target = h if h != target else "source:" + h
+        if target in mapped.values():
+            raise ValueError("Ambiguous duplicate BOM column; provide explicit mapping")
+        mapped[h] = target
+    if "reference" not in mapped.values():
+        raise ValueError("Reference column or explicit reference mapping required")
+    return mapped
+
+
+def checked_headers(cells, config=None):
+    if len([h for h in cells if h.strip()]) != len(set(h for h in cells if h.strip())):
+        raise ValueError("Duplicate source BOM header")
+    schema(cells, config or BomMapping())
     return cells
 
 
+@dataclass(frozen=True)
+class BomRow:
+    location: str
+    raw: dict[str, str]
+    headers: tuple[str, ...]
+    unnamed: tuple[str, ...]
+
+
 def row_map(headers, cells):
-    if any(c.strip() and (i >= len(headers) or not headers[i].strip()) for i, c in enumerate(cells)):
-        raise ValueError("Populated BOM cell has no column header")
-    return {h: cells[i] if i < len(cells) else "" for i, h in enumerate(headers) if h.strip()}
+    # 짧은 행은 빈 셀을 보존한다. 헤더 없는 추가 값은 이름을 추측하지 않고 위치 이름+Issue로 보존한다.
+    raw = {h: cells[i] if i < len(cells) else "" for i, h in enumerate(headers) if h.strip()}
+    unnamed = []
+    for i, value in enumerate(cells):
+        if value.strip() and (i >= len(headers) or not headers[i].strip()):
+            key = f"column:{i + 1}"
+            while key in raw or key in headers:
+                key = "source:" + key
+            raw[key] = value
+            unnamed.append(key)
+    return raw, tuple(unnamed)
 
 
-def csv_cells(data):
+def csv_cells(data, delimiter=None, encoding="utf-8-sig"):
     file_limit(data)
-    text = data.decode("utf-8-sig", errors="strict")
+    text = data.decode(encoding, errors="strict")
     line = next((v for v in text.splitlines() if v.strip()), None)
     if line is None:
         raise ValueError("Empty BOM")
@@ -103,7 +183,7 @@ def csv_cells(data):
             quoted = not quoted
         elif not quoted and char in counts:
             counts[char] += 1
-    delimiter = (
+    delimiter = delimiter or (
         "\t" if counts["\t"] > max(counts[","], counts[";"]) else ";" if counts[";"] > counts[","] else ","
     )
     # csv.reader는 quoted delimiter와 여러 줄 문자열을 표준 문법으로 읽는다.
@@ -152,17 +232,19 @@ def cell_text(value):
     return str(value)
 
 
-def rows_from_file(data, filename):
+def rows_from_file(data, filename, config=None):
+    config = config or BomMapping()
     file_limit(data)
     ext = filename.lower().rsplit(".", 1)[-1]
     if ext == "csv":
-        rows = csv_cells(data)
-        headers = checked_headers(rows[0])
-        return [
-            (f"csv:record:{i}", row_map(headers, row))
-            for i, row in enumerate(rows[1:], 2)
-            if any(c.strip() for c in row)
-        ]
+        rows = csv_cells(data, config.delimiter, config.encoding)
+        headers = checked_headers(rows[0], config)
+        result = []
+        for index, row in enumerate(rows[1:], 2):
+            if any(c.strip() for c in row):
+                raw, unnamed = row_map(headers, row)
+                result.append(BomRow(f"csv:record:{index}", raw, tuple(headers), unnamed))
+        return result
     if ext not in {"xlsx", "xls"}:
         raise ValueError("Supported BOM formats: CSV, XLSX, XLS")
     expected = b"PK\x03\x04" if ext == "xlsx" else b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
@@ -197,13 +279,14 @@ def rows_from_file(data, filename):
                     )
                 values = [cell_text(c.value) for c in cells]
                 if headers is None:
-                    if any(canonical(c) == "reference" for c in values):
-                        headers = checked_headers(values)
+                    mapped_ref = config.columns.get("reference") or config.columns.get("Reference")
+                    if any(canonical(c) == "reference" for c in values) or mapped_ref in values:
+                        headers = checked_headers(values, config)
                         found = True
                     continue
-                raw = row_map(headers, values)
+                raw, unnamed = row_map(headers, values)
                 if any(v.strip() for v in raw.values()):
-                    result.append((f"sheet:{title}:row:{index}", raw))
+                    result.append(BomRow(f"sheet:{title}:row:{index}", raw, tuple(headers), unnamed))
     finally:
         if ext == "xlsx":
             workbook.close()
@@ -214,10 +297,16 @@ def rows_from_file(data, filename):
     return result
 
 
-def parse_bom(data: bytes, filename: str) -> BomResult:
+def parse_bom(data: bytes, filename: str, mapping=None) -> BomResult:
+    config = mapping if isinstance(mapping, BomMapping) else BomMapping.model_validate(mapping or {})
     components, specifications, variants, issues = {}, {}, {}, []
-    for location, raw in rows_from_file(data, filename):
-        fields = {column(h, catalogue(raw)): v for h, v in raw.items()}
+    rows = rows_from_file(data, filename, config)
+    source_headers = []
+    for row in rows:
+        location, raw = row.location, row.raw
+        source_headers.extend(h for h in row.headers if h not in source_headers)
+        resolved = schema(row.headers, config)
+        fields = {resolved.get(h, h): v for h, v in raw.items()}
         references = clean(fields.get("reference"))
         if references is None:
             issues.append(issue("MISSING_REFERENCE", source=location, error=True))
@@ -237,6 +326,17 @@ def parse_bom(data: bytes, filename: str) -> BomResult:
             if ref in components:
                 issues.append(issue("DUPLICATE_REFERENCE", ref, location, "First instance retained", True))
                 continue
+            if row.unnamed:
+                issues.append(
+                    issue(
+                        "PARSE_FAILURE",
+                        ref,
+                        location,
+                        "Values without column headers retained as positional attributes: "
+                        + ", ".join(row.unnamed),
+                        True,
+                    )
+                )
             value = clean(fields.get("value"))
             if value is None:
                 issues.append(issue("MISSING_VALUE", ref, location))
@@ -256,7 +356,13 @@ def parse_bom(data: bytes, filename: str) -> BomResult:
             def placement(raw_flag, no_mount=False):
                 flag = clean(raw_flag)
                 if flag is None:
-                    return AssemblyStatus.FITTED if no_mount else AssemblyStatus.UNSPECIFIED
+                    if no_mount:
+                        # 확인된 공개 catalogue 규칙 또는 사용자 명시 정책만 빈 값을 실장으로 해석한다.
+                        blank = config.no_mount_blank or (
+                            "FITTED" if catalogue(row.headers) else "UNSPECIFIED"
+                        )
+                        return AssemblyStatus(blank)
+                    return AssemblyStatus.UNSPECIFIED
                 if no_mount:
                     result = AssemblyStatus.DNP if flag.upper() == "NM" else None
                 else:
@@ -287,10 +393,11 @@ def parse_bom(data: bytes, filename: str) -> BomResult:
                 mounted = AssemblyStatus.UNSPECIFIED
 
             def attribute(key, raw_value):
-                if key not in UNITS:
+                unit = config.units.get(key, UNITS.get(key))
+                if unit is None:
                     return AttributeValue(raw=raw_value)
                 try:
-                    return normalize(raw_value, UNITS[key])
+                    return normalize(raw_value, unit)
                 except ValueError:
                     issues.append(issue("INVALID_UNIT", ref, location, "Invalid " + key + " unit"))
                     return AttributeValue(raw=raw_value)
@@ -367,8 +474,25 @@ def parse_bom(data: bytes, filename: str) -> BomResult:
                 reference=ref,
                 value=value,
                 part_specification_id=spec.id,
-                raw_sources={"bom": raw, "provenance": {"bomLocation": location}},
+                raw_sources={
+                    "bom": raw,
+                    "provenance": {
+                        "bomLocation": location,
+                        "bomHeaderOrder": json.dumps(row.headers, ensure_ascii=False),
+                    },
+                },
                 source_path=location,
                 assembly_status=mounted,
             )
-    return BomResult(components=components, specifications=specifications, issues=issues)
+    return BomResult(
+        components=components,
+        specifications=specifications,
+        issues=issues,
+        source_metadata={
+            "bomFormat": filename.lower().rsplit(".", 1)[-1],
+            "bomEncoding": config.encoding if filename.lower().endswith(".csv") else "workbook",
+            "bomRowCount": str(len(rows)),
+            "bomColumns": json.dumps(source_headers, ensure_ascii=False),
+            "bomMapping": json.dumps(wire(config), ensure_ascii=False, sort_keys=True),
+        },
+    )

@@ -64,7 +64,7 @@ def assemble(name, version, bom, netlist):
         nets=netlist.nets,
         connections=netlist.connections,
         issues=issues,
-        source_metadata=netlist.source_metadata,
+        source_metadata={**netlist.source_metadata, **bom.source_metadata},
     )
 
 

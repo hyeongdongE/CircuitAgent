@@ -215,6 +215,7 @@ def create_app(store=None):
         name: str = Form(..., min_length=1, max_length=191),
         version: str = Form("v1", min_length=1, max_length=64),
         netlistFormat: str = Form("kicad"),
+        bomMapping: str | None = Form(None, max_length=16384),
         bom: UploadFile = File(...),
         netlist: UploadFile = File(...),
     ):
@@ -244,7 +245,7 @@ def create_app(store=None):
         d = assemble(
             name,
             version,
-            parse_bom(files[0][2], files[0][1]),
+            parse_bom(files[0][2], files[0][1], json.loads(bomMapping) if bomMapping else None),
             PARSERS[netlistFormat].parse(files[1][2], files[1][1]),
         )
         request.app.state.store.save(d, files)

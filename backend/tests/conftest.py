@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+
 from circuitagent.bom import parse_bom
 from circuitagent.graph import CircuitGraph, assemble
 from circuitagent.netlist import QcvNetlistParser
