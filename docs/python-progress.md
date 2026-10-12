@@ -41,3 +41,5 @@ CSV 동적 입력 후속 개선: 업로드 기본 입력을 CSV로 전환했다.
 최종 CSV 브라우저 재검증: 화면 갱신 완료를 기다린 후 핀을 선택하도록 테스트를 수정했고, 실제 CSV→업로드→MySQL→U16 Net 탐색→Audit→이력 재조회 2개 브라우저 테스트가 모두 통과했다. 전체 Python162 PASS, browser2 PASS이며 실패/미실행 0이다. 테스트 범위 밖 삼성 QCV/SSO 지원은 완료로 간주하지 않는다.
 
 직접 설치 MySQL 후속 작업: Testcontainers/Docker Python 의존성을 삭제했다. 테스트는 TEST_DB_* 전용 계정으로 UUID 임시 DB를 생성하고 자신이 생성한 DB만 정리한다. 일반 DB_* 및 DATABASE_URL을 테스트에 상속하지 않는다. Native MySQL8.0.43에서 전체170개/실제브라우저2개가 통과했으며 임시 DB 정리·앱 DB 권한 분리도 확인했다. README/native-mysql 가이드와 최신 native-mysql-validation 문서에 설치·실행·결과를 기록했다. 기존162개 Docker 결과는 역사적 기록으로 구분한다.
+
+Windows 설치 오류 수정: Linux 전용 lock에서 빠진 build/pytest의 Colorama와 pandas의 TZData를 universal lock으로 고정했다. 기존 패키지 버전은 변경하지 않았다. Windows x64/Python3.12 대상으로 의존성 해결 및 wheel SHA256 require-hashes 설치 계획66개 패키지를 검증했다. 실제 Windows OS 설치/실행은 미실행이다. Windows/Linux/macOS 메타데이터 조건 회귀3개를 추가했고 파서·그래프·Rule·UI·DB 설정 테스트를 포함해145개가 통과했다. 이 변경에서 DB·브라우저 통합 테스트를 다시 실행하지 않았으며 이전 native170/browser2 결과와 합산하지 않는다.

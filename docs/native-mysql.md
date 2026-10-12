@@ -86,3 +86,15 @@ python -m pytest -q tests/test_model_parsers.py tests/test_dynamic_csv.py tests/
 - Access denied: 계정 host/비밀번호/권한을 Workbench에서 확인한다.
 - CREATE DATABASE denied: 앱 계정이 아닌 전용 TEST_DB_USERNAME과 접두사 DB 권한을 확인한다.
 - 같은 이름/버전 업로드409: 다른 이름/버전으로 새 설계를 생성한다.
+
+## Windows 해시 설치 오류
+
+초기 lock은 Linux 환경만 해결해 build/pytest의 Windows 전용 Colorama와 pandas의 TZData를 누락했다. `--require-hashes` 모드에서는 이러한 간접 의존성도 버전·해시가 필요하므로 오류가 발생한다. 수정된 requirements.lock으로 교체한 후 기존 설치 명령을 다시 실행한다. 가상환경이나 MySQL 데이터를 삭제할 필요는 없다. hash 검사를 끄거나 Colorama만 미리 설치하는 방식으로 우회하지 않는다.
+
+유지보수 시 Windows/Linux/macOS 의존성을 모두 포함하도록 다음 명령을 사용한다:
+
+```sh
+uv pip compile backend/pyproject.toml --extra ui --extra test --universal --generate-hashes --output-file backend/requirements.lock
+```
+
+이번 수정은 기존 패키지 버전을 유지하고 Colorama0.4.6/TZData2026.5의 조건부 버전·해시를 추가했다. Linux 환경에서 Windows x64/Python3.12 대상으로 wheel/hash 설치 계획을 검증했으며, 실제 Windows 실행 테스트로 간주하지 않는다.
