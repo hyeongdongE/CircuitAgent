@@ -52,7 +52,7 @@
 명령: `cd backend && ./gradlew clean test bootJar --no-daemon`
 (Java 21, 환경 proxy/CA 및 별도 Gradle cache 설정). **51 tests PASS, failures/errors/skipped 0,
 BUILD SUCCESSFUL**. 기존 27 + 신규 24. `git diff --check` PASS.
-[XML 기반 집계](stage02-review-test-results.json), JAR `backend/build/libs/circuitagent-0.1.0-SNAPSHOT.jar`.
+[현재 전체 XML 기반 집계](integration-test-results.json) (51개는 이 리뷰 당시 수치), JAR `backend/build/libs/circuitagent-0.1.0-SNAPSHOT.jar`.
 초기 전체 수정 검증 48 PASS 이후 XLSX 사전 압축 해제 제한/속성 충돌/unknown inventory
 보조 테스트 3개 추가 및 그래프 parallel edge 보존 보완으로 최종 전체 검증을 재실행했다.
 

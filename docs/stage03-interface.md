@@ -63,7 +63,7 @@ REST의 기존 route/필드는 유지한다. 추가:
 ComponentView/CircuitDesign.components의 `assemblyStatus`는 추가 JSON 필드다.
 새 context에서 존재하지 않는 pin은 200/MISSING_PIN, 없는 design/component는 404.
 기존 getNetOfPin 및 부품 조회의 누락 처리 계약은 그대로다.
-React나 외부 Stage 03 소비 코드는 현재 저장소에 없어 strict JSON DTO 소비자는 확인 필요.
+새 React PoC는 추가 조회 필드를 사용한다. 외부 팀원 소비 코드의 strict JSON DTO는 연결 시 확인이 필요하다.
 
 ## 배포 및 QCV 경계
 
@@ -127,3 +127,7 @@ HTTP는 기존 net/component/pin 조회로 인접 부품을 탐색하며 제한�
 
 V3 migration은 기존 핀을 UNSPECIFIED/빈 metadata로 보존합니다. 새 import는 disposition과
 원문 행 metadata를 MySQL JSON에 저장/복원합니다.
+
+## 정형 Audit PoC 추가
+
+Stage02 모델/파서/기존 REST는 보존한다. 새 `CircuitGraph.designSnapshot()`으로 불변 design/version/hash 입력을 조회한다. Rule 실행당 snapshot1회 정책 및 결과·근거·API는 [Stage03 통합 계약](stage03-integration.md)에 있다. 별도 audit.poc는 실제 Stage01/팀원 Rule Parser를 대체하지 않는다.

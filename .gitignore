@@ -9,3 +9,6 @@ dist/
 
 # External Sparrow sources have no explicit redistribution license
 .local/
+frontend/test-results/
+frontend/playwright-report/
+*.tsbuildinfo

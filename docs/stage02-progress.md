@@ -1,3 +1,5 @@
+> 아래 단계별 수치와 미지원 항목은 각 단계 완료 당시의 기록입니다. 현재 통합 상태는 [integration-progress.md](integration-progress.md), 최신 집계는 [integration-test-results.json](integration-test-results.json)에 있습니다. 과거 집계·성능·PR 본문 복사본은 중복 산출물 정리 과정에서 삭제했습니다.
+
 # Stage 02 진행 기록
 
 이 문서는 초기 구현/이전 리뷰를 보존한 누적 기록입니다. 현재 상태는 아래 **공개 PADS QCV PoC** STEP 0~12와 [최종 검증](qcv-poc-validation.md)을 참고하세요. 이전의 QCV 미지원 설명은 해당 시점의 기록입니다.
@@ -91,7 +93,7 @@
 ## STEP 9 — 로컬/Cloud 검증 완료, 원격 GitHub 작업 차단
 
 - 구현한 기능: 지원 범위 전체 clean test, 실행 Boot JAR 빌드, 테스트 XML 집계, 단계별 커밋 및 PR 설명 준비. 기본 브랜치에는 부트스트랩만 생성했고 Stage 02는 feat/stage02-design-modeling에서 구현함. 원격 기본 브랜치 병합 없음.
-- 변경 파일: docs/stage02-progress.md, docs/stage02-test-results.json, docs/stage02-pr.md. 빌드 결과 backend/build/libs/circuitagent-0.1.0-SNAPSHOT.jar (Git 제외).
+- 변경 파일: docs/stage02-progress.md 및 당시 테스트 집계·PR 본문(현재 최신 통합 집계로 정리). 빌드 결과 backend/build/libs/circuitagent-0.1.0-SNAPSHOT.jar (Git 제외).
 - 테스트 명령: `cd backend && ./gradlew clean test bootJar --no-daemon`; `git diff --check`.
 - 테스트 결과: BUILD SUCCESSFUL. 27 tests / 0 failures / 0 errors / 0 skipped. 기본 앱 1, Fixture 1, Domain 3, BOM 6, Netlist 5, Graph 3, 실제 MySQL 3, 실제 MySQL 기반 API 5. 5V BOM/Netlist/매칭 모두 12, R1 1000 Ω, U1 L7805, Pin 25/Net 6/연결 25. Shift BOM 27/Netlist 31/매칭 27 및 H1~H4 이슈 확인. 원본 Fixture 무결성 유지. 실행 JAR 빌드 성공, diff check 통과.
 - 미실행 테스트: 실제 QCV 구문/성공 파싱 (샘플/명세 없음). QCV는 미지원 거절만 검증함. 외부 배포/React UI 테스트는 범위 밖.
@@ -136,7 +138,7 @@
 기존 27개 재실행 PASS; 개선 후 최종 `clean test bootJar` 51 PASS / failures·errors·skipped 0.
 실제 MySQL V1→V2, DNP/미참조 사양 복원, 격리/FK/롤백/API 및 실제 공개 Fixture 검증.
 DNP/사양 재사용/중복 Net/입력 제한/Stage 03 snapshot·pin 상태·탐색을 보완했다.
-[Stage 03 계약](stage03-interface.md) 및 [최종 집계](stage02-review-test-results.json) 참고.
+[Stage 03 계약](stage03-interface.md) 및 [최종 집계](integration-test-results.json) 참고.
 미해결: 실제 QCV/정답 회로·사내 SSO/설계 권한·외부 Stage 03 DTO/대규모 성능 검증.
 다음: 리뷰 STEP 9 같은 feature 브랜치/PR #1에 반영. main 병합 안 함.
 
@@ -225,12 +227,12 @@ PR #1 설명/제목을 최종 결과로 갱신했다(REST 확인 OPEN/main/기�
 - JUnit XML 21 suites/80 tests, 기존51 + 신규29, PASS80/failure0/error0/skipped0. actual MySQL8.0.43. 기존51은 삭제 없이 QCV stub/JSON migration의 변경된 기대값 3곳 갱신.
 - 세 실제 보드의 XLSX/BOM/QCV/graph/MySQL 전체 복원/API와 기존 KiCad, FK·롤백·설계 격리·V1upgrade/잘못된 입력/ImportIssue 검증 포함.
 - 실제 FE issues80=MISSING_VALUE72+NETLIST_ONLY_COMPONENT8, NTop93=85+8, FE-NTop129=121+8. INVALID_UNIT0. 이슈는 원문 빈 값/PCB 추가 부품을 보존한 경고이며 단위 오류 수정 후 수치.
-- 최종 3회 중앙값(ms): BOM64.890/QCV18.740/통합4.577/Graph1.887/MySQL1560.244/API379.926. 환경/개별 sample/비배치 baseline은 docs/qcv-performance.json. 컨테이너 초기화/파일 read 제외; API는 MockMvc로 전체DB복원/JSON까지, network latency 제외. SLA 아님.
+- 최종 3회 중앙값(ms): BOM64.890/QCV18.740/통합4.577/Graph1.887/MySQL1560.244/API379.926. 위 수치는 당시 측정치이며, 현재 통합 환경의 sample/방법은 docs/audit-performance.json에 기록한다. 컨테이너 초기화/파일 read 제외; API는 MockMvc로 전체DB복원/JSON까지, network latency 제외. SLA 아님.
 - 미실행: 실제 삼성 QCV(미제공), React/browser UI(프로젝트 없음), 인증/운영 배포. 공개 QCV PoC의 필수 DB/API 테스트는 skip 없음.
 - 다음: STEP 12 문서/기존 PR 업데이트.
 
 ### STEP 12 — 완료
-- 문서: stage02-progress.md, stage03-interface.md, qcv-poc-validation.md, qcv-poc-test-results.json, qcv-performance.json 및 README/model/API/QCV/PR 설명 갱신. 이전 리뷰 기록 보존.
+- 문서: stage02-progress.md, stage03-interface.md, qcv-poc-validation.md, integration-test-results.json, audit-performance.json 및 README/model/API/QCV 설명 갱신. 이전 리뷰 기록 보존.
 - source6파일 및 이번 변환 XLSX SHA/bytes, 보드별 수치·issue·실행 XML suite 집계·성능 실제 sample·지원/미지원 범위·재현 명령 기록.
 - 기존 feat/stage02-design-modeling 브랜치에서 core/parser, raw·batch 수정, real source 회귀 테스트, 문서별 커밋. 기본 브랜치 병합 없음. PR #1에 동일 브랜치 후속 변경 반영.
 - 문서/라이선스 검증: git diff --check; Git tracked 목록에 외부 Sparrow CSV/QCV/XLSX 및 참고 Python 없음. 기존 KiCad fixtures는 유지. React/Stage01/03 engine/04 코드 변경 없음.
@@ -251,5 +253,5 @@ PR #1 설명/제목을 최종 결과로 갱신했다(REST 확인 OPEN/main/기�
 | 8 | QcvBoardRegressionTest |
 | 9 | parse/EngineeringUnits.java·BomParser.java, QcvRobustnessTest·QcvPerformanceTest |
 | 10 | application.yml, CsvToXlsx budget 정리 |
-| 11 | clean test bootJar 실행 결과, qcv-poc-test-results.json·qcv-performance.json |
+| 11 | clean test bootJar 실행 결과, integration-test-results.json·audit-performance.json |
 | 12 | README, docs/stage02-{api,model,qcv,pr,progress,review}.md, stage03-interface.md, qcv-poc-validation.md |

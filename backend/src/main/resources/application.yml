@@ -1,6 +1,7 @@
 spring:
   application:
     name: circuitagent
+  # 접속 정보는 환경변수로 주입한다. 저장소에 실제 비밀번호를 기록하지 않는다.
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/circuitagent?useUnicode=true&characterEncoding=UTF-8}
     username: ${DB_USERNAME:circuitagent}
@@ -8,6 +9,7 @@ spring:
     hikari:
       data-source-properties:
         rewriteBatchedStatements: true
+  # Flyway가 스키마를 변경하고 Hibernate는 매핑 일치 여부만 검증한다.
   jpa:
     open-in-view: false
     hibernate:
@@ -19,3 +21,9 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 20MB
+
+# 기본 바인딩은 로컬 전용이다. PoC 접근 경계는 기업 인증/설계별 권한 구현을 대신하지 않는다.
+server:
+  address: 127.0.0.1
+circuitagent:
+  mode: ${CIRCUITAGENT_MODE:local-poc}
