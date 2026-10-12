@@ -1,0 +1,374 @@
+"""BOM CSV/XLSX/XLS 파서. 그룹 Reference를 펼치고 원문·위치·실장 상태를 보존한다."""
+
+from __future__ import annotations
+
+import csv
+import io
+import re
+import zipfile
+from decimal import Decimal, InvalidOperation
+
+import openpyxl
+import xlrd
+
+from .domain import AssemblyStatus, AttributeValue, BomResult, ComponentInstance, PartSpecification, issue
+from .units import UNITS, normalize
+
+MAX_BYTES = 10 * 1024 * 1024
+MAX_EXPANDED = 32 * 1024 * 1024
+MAX_ROWS, MAX_COLUMNS, MAX_CELLS, MAX_VALUES = 50_000, 256, 250_000, 500_000
+ALIASES = {
+    **dict.fromkeys(
+        ["reference", "references", "ref", "refs", "designator", "designators", "refdes"], "reference"
+    ),
+    "value": "value",
+    "designation": "value",
+    "qty": "quantity",
+    "quantity": "quantity",
+    "qtyonboard": "quantity",
+    "mpn": "mpn",
+    "partnumber": "mpn",
+    "manufacturerpartnumber": "mpn",
+    "manufacturer": "manufacturer",
+    "mfr": "manufacturer",
+    "type": "type",
+    "componenttype": "type",
+    "voltagerating": "Voltage Rating",
+    "voltage": "Voltage Rating",
+    "currentrating": "Current Rating",
+    "current": "Current Rating",
+    "resistance": "Resistance",
+    "capacitance": "Capacitance",
+    "inductance": "Inductance",
+    "tolerance": "Tolerance",
+    "nomount": "nomount",
+    "dnp": "dnp",
+    "dnf": "dnp",
+    "donotpopulate": "dnp",
+    "donotfit": "dnp",
+}
+
+
+def file_limit(data):
+    if len(data) > MAX_BYTES:
+        raise ValueError("Parser input exceeds 10 MiB")
+
+
+def clean(value):
+    return None if value is None or not value.strip() or value.strip() == "~" else value.strip()
+
+
+def canonical(header):
+    return ALIASES.get(re.sub("[^a-z0-9]", "", header.strip().lower()), header.strip())
+
+
+def catalogue(headers):
+    keys = {re.sub("[^a-z0-9]", "", h.strip().lower()) for h in headers}
+    return {"refdes", "qtyonboard"} <= keys
+
+
+def column(header, is_catalogue):
+    # 내부 PartNumber와 Voltage는 제조사 MPN/정격이라고 자동 확정하지 않는다.
+    if is_catalogue and header.strip().lower() == "partnumber":
+        return "Part Number"
+    if is_catalogue and header.strip().lower() == "voltage":
+        return "Voltage"
+    return canonical(header)
+
+
+def checked_headers(cells):
+    if not any(canonical(c) == "reference" for c in cells):
+        raise ValueError("BOM Reference column required")
+    keys = [column(c, catalogue(cells)) for c in cells if c.strip()]
+    if len(keys) != len(set(keys)):
+        raise ValueError("Ambiguous duplicate BOM column")
+    return cells
+
+
+def row_map(headers, cells):
+    if any(c.strip() and (i >= len(headers) or not headers[i].strip()) for i, c in enumerate(cells)):
+        raise ValueError("Populated BOM cell has no column header")
+    return {h: cells[i] if i < len(cells) else "" for i, h in enumerate(headers) if h.strip()}
+
+
+def csv_cells(data):
+    file_limit(data)
+    text = data.decode("utf-8-sig", errors="strict")
+    line = next((v for v in text.splitlines() if v.strip()), None)
+    if line is None:
+        raise ValueError("Empty BOM")
+    quoted, counts = False, {",": 0, ";": 0, "\t": 0}
+    for char in line:
+        if char == '"':
+            quoted = not quoted
+        elif not quoted and char in counts:
+            counts[char] += 1
+    delimiter = (
+        "\t" if counts["\t"] > max(counts[","], counts[";"]) else ";" if counts[";"] > counts[","] else ","
+    )
+    # csv.reader는 quoted delimiter와 여러 줄 문자열을 표준 문법으로 읽는다.
+    try:
+        rows = []
+        total = 0
+        for row in csv.reader(io.StringIO(text, newline=""), delimiter=delimiter, strict=True):
+            if not row:
+                continue
+            total += len(row)
+            if len(rows) >= MAX_ROWS or total > MAX_CELLS or len(row) > MAX_COLUMNS:
+                raise ValueError("BOM row/column/cell limit exceeded")
+            rows.append(row)
+    except csv.Error as exc:
+        raise ValueError("Invalid CSV content") from exc
+    return rows
+
+
+def validate_zip(data):
+    # 압축 metadata와 실제 읽힌 bytes를 모두 검사해 XLSX ZIP bomb를 Workbook 할당 전에 차단한다.
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            entries = z.infolist()
+            if len(entries) > 1000 or sum(e.file_size for e in entries) > MAX_EXPANDED:
+                raise ValueError("Excel expanded content limit exceeded")
+            total = 0
+            for entry in entries:
+                with z.open(entry) as f:
+                    while chunk := f.read(8192):
+                        total += len(chunk)
+                        if total > MAX_EXPANDED:
+                            raise ValueError("Excel expanded content limit exceeded")
+    except zipfile.BadZipFile as exc:
+        raise ValueError("Invalid Excel ZIP") from exc
+
+
+def cell_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, float):
+        return format(value, ".15g")
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def rows_from_file(data, filename):
+    file_limit(data)
+    ext = filename.lower().rsplit(".", 1)[-1]
+    if ext == "csv":
+        rows = csv_cells(data)
+        headers = checked_headers(rows[0])
+        return [
+            (f"csv:record:{i}", row_map(headers, row))
+            for i, row in enumerate(rows[1:], 2)
+            if any(c.strip() for c in row)
+        ]
+    if ext not in {"xlsx", "xls"}:
+        raise ValueError("Supported BOM formats: CSV, XLSX, XLS")
+    expected = b"PK\x03\x04" if ext == "xlsx" else b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+    if not data.startswith(expected):
+        raise ValueError("Excel content does not match filename extension")
+    budget, result, found = 0, [], False
+    if ext == "xlsx":
+        validate_zip(data)
+        workbook = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=False)
+        sheets = [(s.title, s.iter_rows()) for s in workbook]
+    else:
+        workbook = xlrd.open_workbook(file_contents=data, on_demand=True)
+
+        def xls_rows(sheet):
+            for row in range(sheet.nrows):
+                yield [sheet.cell(row, col) for col in range(sheet.ncols)]
+
+        sheets = [(sheet.name, xls_rows(sheet)) for sheet in workbook.sheets()]
+    try:
+        for title, rows in sheets:
+            headers = None
+            for index, cells in enumerate(rows, 1):
+                if index > MAX_ROWS or len(cells) > MAX_COLUMNS:
+                    raise ValueError("BOM row/column limit exceeded")
+                budget += len(cells)
+                if budget > MAX_CELLS:
+                    raise ValueError("BOM cell limit exceeded")
+                # openpyxl은 POI처럼 수식을 계산하지 않는다. 수식을 값으로 잘못 해석하지 않고 명시 거절한다.
+                if ext == "xlsx" and any(c.data_type == "f" for c in cells):
+                    raise ValueError(
+                        "Formula cells require explicit values; Python importer does not evaluate Excel formulas"
+                    )
+                values = [cell_text(c.value) for c in cells]
+                if headers is None:
+                    if any(canonical(c) == "reference" for c in values):
+                        headers = checked_headers(values)
+                        found = True
+                    continue
+                raw = row_map(headers, values)
+                if any(v.strip() for v in raw.values()):
+                    result.append((f"sheet:{title}:row:{index}", raw))
+    finally:
+        if ext == "xlsx":
+            workbook.close()
+        else:
+            workbook.release_resources()
+    if not found:
+        raise ValueError("BOM Reference column required")
+    return result
+
+
+def parse_bom(data: bytes, filename: str) -> BomResult:
+    components, specifications, variants, issues = {}, {}, {}, []
+    for location, raw in rows_from_file(data, filename):
+        fields = {column(h, catalogue(raw)): v for h, v in raw.items()}
+        references = clean(fields.get("reference"))
+        if references is None:
+            issues.append(issue("MISSING_REFERENCE", source=location, error=True))
+            continue
+        refs = [r for r in re.split(r"[,;\s]+", references) if r]
+        quantity = clean(fields.get("quantity"))
+        if quantity is not None:
+            try:
+                q = Decimal(quantity)
+                if not q.is_finite() or q != q.to_integral_value():
+                    raise ValueError("Quantity must be an integer")
+                if q != len(refs):
+                    issues.append(issue("QUANTITY_MISMATCH", references, location))
+            except (ValueError, InvalidOperation):
+                issues.append(issue("PARSE_FAILURE", references, location, "Invalid quantity", True))
+        for ref in refs:
+            if ref in components:
+                issues.append(issue("DUPLICATE_REFERENCE", ref, location, "First instance retained", True))
+                continue
+            value = clean(fields.get("value"))
+            if value is None:
+                issues.append(issue("MISSING_VALUE", ref, location))
+            type_ = clean(fields.get("type"))
+            if type_ is None:
+                type_ = next(
+                    (
+                        t
+                        for prefix, t in [("R", "resistor"), ("C", "capacitor"), ("L", "inductor")]
+                        if re.fullmatch(prefix + "[0-9]+", ref)
+                    ),
+                    None,
+                )
+            else:
+                type_ = type_.lower()
+
+            def placement(raw_flag, no_mount=False):
+                flag = clean(raw_flag)
+                if flag is None:
+                    return AssemblyStatus.FITTED if no_mount else AssemblyStatus.UNSPECIFIED
+                if no_mount:
+                    result = AssemblyStatus.DNP if flag.upper() == "NM" else None
+                else:
+                    result = (
+                        AssemblyStatus.DNP
+                        if flag.lower() in {"1", "true", "yes", "y", "dnp", "dnf", "x"}
+                        else AssemblyStatus.FITTED
+                        if flag.lower() in {"0", "false", "no", "n"}
+                        else None
+                    )
+                if result is None:
+                    issues.append(issue("PARSE_FAILURE", ref, location, "Unknown assembly flag"))
+                return result or AssemblyStatus.UNSPECIFIED
+
+            mounted = (
+                placement(fields.get("nomount"), True)
+                if "nomount" in fields
+                else placement(fields.get("dnp"))
+            )
+            if (
+                "nomount" in fields
+                and clean(fields.get("dnp")) is not None
+                and mounted != placement(fields["dnp"])
+            ):
+                issues.append(
+                    issue("SPECIFICATION_CONFLICT", ref, location, "NoMount and DNP disagree", True)
+                )
+                mounted = AssemblyStatus.UNSPECIFIED
+
+            def attribute(key, raw_value):
+                if key not in UNITS:
+                    return AttributeValue(raw=raw_value)
+                try:
+                    return normalize(raw_value, UNITS[key])
+                except ValueError:
+                    issues.append(issue("INVALID_UNIT", ref, location, "Invalid " + key + " unit"))
+                    return AttributeValue(raw=raw_value)
+
+            attributes = {
+                k: attribute(k, v)
+                for k, v in fields.items()
+                if clean(v) is not None
+                and k
+                not in {
+                    "reference",
+                    "value",
+                    "quantity",
+                    "manufacturer",
+                    "mpn",
+                    "type",
+                    "Id",
+                    "dnp",
+                    "nomount",
+                }
+            }
+            physical = {"resistor": "Resistance", "capacitor": "Capacitance", "inductor": "Inductance"}.get(
+                type_
+            )
+            if physical and value is not None:
+                from_value = attribute(physical, fields["value"])
+                explicit = attributes.setdefault(physical, from_value)
+                if (
+                    explicit.normalized is not None
+                    and from_value.normalized is not None
+                    and explicit.normalized != from_value.normalized
+                ):
+                    issues.append(issue("VALUE_MISMATCH", ref, location, "Explicit attribute retained"))
+            mpn, manufacturer = clean(fields.get("mpn")), clean(fields.get("manufacturer"))
+            spec = PartSpecification(mpn=mpn, manufacturer=manufacturer, type=type_, attributes=attributes)
+            catalogue_part = clean(fields.get("Part Number"))
+            identity = (
+                ("mpn", manufacturer or "", mpn)
+                if mpn
+                else ("catalogue", catalogue_part, fields.get("Rev", ""))
+                if catalogue_part
+                else None
+            )
+            if identity:
+                existing = variants.setdefault(identity, [])
+
+                def equivalent(other):
+                    if other.type != spec.type or other.attributes.keys() != spec.attributes.keys():
+                        return False
+                    return all(
+                        a.unit == b.unit and a.normalized == b.normalized
+                        if a.normalized is not None and b.normalized is not None
+                        else a == b
+                        for key, a in spec.attributes.items()
+                        for b in [other.attributes[key]]
+                    )
+
+                shared = next((s for s in existing if equivalent(s)), None)
+                if shared:
+                    spec = shared
+                else:
+                    if existing:
+                        issues.append(
+                            issue(
+                                "SPECIFICATION_CONFLICT",
+                                ref,
+                                location,
+                                "Same identity has conflicting attributes",
+                            )
+                        )
+                    existing.append(spec)
+            specifications[spec.id] = spec
+            components[ref] = ComponentInstance(
+                reference=ref,
+                value=value,
+                part_specification_id=spec.id,
+                raw_sources={"bom": raw, "provenance": {"bomLocation": location}},
+                source_path=location,
+                assembly_status=mounted,
+            )
+    return BomResult(components=components, specifications=specifications, issues=issues)
