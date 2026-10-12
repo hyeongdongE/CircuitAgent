@@ -1,0 +1,20 @@
+{
+  "testedSourceCommit": "12aad354c377f43f66b45990e0b318f39bc89dea",
+  "python": "3.12.14",
+  "environment": "Fresh isolated Python environment, Linux, no MySQL/Docker/API/UI dependencies",
+  "tests": {
+    "tests": 79,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "seconds": 3.985,
+  "lint": "PASS",
+  "wheel": "PASS",
+  "sdist": "PASS",
+  "installedWheelRealCLI": "PASS",
+  "allCoreClassFunctionDocstrings": "PASS",
+  "windowsX64Python312WheelHashPlan": "PASS, 16 packages; actual Windows execution not run",
+  "warning": "3 openpyxl warnings: prior real XLSX has no default style; cell contents and connectivity tests passed",
+  "wheelSHA256": "233fe9c48fce50119633c67d175d323474f0fa97dea50efd010e8620d52e9532"
+}
