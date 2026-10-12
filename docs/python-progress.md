@@ -39,3 +39,5 @@
 CSV 동적 입력 후속 개선: 업로드 기본 입력을 CSV로 전환했다. 행 개수·컬럼 순서·속성 집합에 고정 배열이나 회로별 상수를 적용하지 않는다. 선택적 BOM 매핑·인코딩·구분자·단위·NoMount 정책을 추가하고, 원본 헤더 순서 및 불규칙 행의 추가 값도 보존한다. 세 실제 CSV 보드와 사용자 정의 컬럼, 변동 행 수, CP949, 잘못된 매핑을 회귀 테스트한다. BOM 속성과 QCV 연결은 Reference로만 통합한다.
 
 최종 CSV 브라우저 재검증: 화면 갱신 완료를 기다린 후 핀을 선택하도록 테스트를 수정했고, 실제 CSV→업로드→MySQL→U16 Net 탐색→Audit→이력 재조회 2개 브라우저 테스트가 모두 통과했다. 전체 Python162 PASS, browser2 PASS이며 실패/미실행 0이다. 테스트 범위 밖 삼성 QCV/SSO 지원은 완료로 간주하지 않는다.
+
+직접 설치 MySQL 후속 작업: Testcontainers/Docker Python 의존성을 삭제했다. 테스트는 TEST_DB_* 전용 계정으로 UUID 임시 DB를 생성하고 자신이 생성한 DB만 정리한다. 일반 DB_* 및 DATABASE_URL을 테스트에 상속하지 않는다. Native MySQL8.0.43에서 전체170개/실제브라우저2개가 통과했으며 임시 DB 정리·앱 DB 권한 분리도 확인했다. README/native-mysql 가이드와 최신 native-mysql-validation 문서에 설치·실행·결과를 기록했다. 기존162개 Docker 결과는 역사적 기록으로 구분한다.

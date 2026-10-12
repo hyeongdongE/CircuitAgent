@@ -16,6 +16,7 @@ from circuitagent.database import CircuitStore, make_engine
 from circuitagent.graph import CircuitGraph, assemble
 from circuitagent.netlist import QcvNetlistParser
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 
 def main():
@@ -24,6 +25,8 @@ def main():
     net = (root / ".local/qcv-fixtures/fe.qcv").read_bytes()
     engine = make_engine()
     store = CircuitStore(engine)
+    with engine.connect() as conn:
+        mysql_version = conn.scalar(text("SELECT VERSION()"))
     samples = []
 
     def measure(row, name, fn):
@@ -87,7 +90,8 @@ def main():
         "environment": {
             "python": sys.version.split()[0],
             "platform": platform.platform(),
-            "mysql": "8.0.43 Docker",
+            "mysql": mysql_version,
+            "mysqlConnection": "Configured DB_* / DATABASE_URL; deployment method is not inferred",
             "samples": 3,
             "api": "ASGI TestClient, real MySQL, no network/browser latency",
             "fixture": "Actual Sparrow FE R3",

@@ -94,15 +94,6 @@
       "classifiers": []
     },
     {
-      "name": "testcontainers",
-      "version": "4.15.0",
-      "licenseExpression": "Apache-2.0",
-      "license": null,
-      "classifiers": [
-        "License :: OSI Approved :: Apache Software License"
-      ]
-    },
-    {
       "name": "playwright",
       "version": "1.63.0",
       "licenseExpression": "Apache-2.0",
