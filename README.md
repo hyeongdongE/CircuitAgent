@@ -1,120 +1,129 @@
-# CircuitAgent
+# CircuitAgent — Python 통합 PoC
 
-회로 검증 자동화 프로젝트의 Stage 02와 최소 Stage 03 통합 PoC입니다.
-공개 KiCad 회로와 Sparrow 3개 보드의 실제 PADS QCV + BOM XLSX로 검증합니다.
+BOM Excel과 공개 PADS QCV/KiCad Netlist를 회로 모델로 만들고, 명시적인 데이터시트 Rule을 적용해 결과와 근거를 확인합니다. **Backend와 화면 모두 Python으로 작성**합니다.
 
-- Java 21 **JDK**, Spring Boot 3.5.16, Gradle 8.14.6, MySQL 8
-- BOM: UTF-8 CSV, XLSX, XLS / 단위 정규화, 원본 및 ImportIssue 보존
-- Netlist: KiCad S-expression 및 공개 PADS QCV / Component·Pin·Net 그래프 및 조회
-- MySQL: JPA, Flyway, JSON 속성, 원본 파일·체크섬, 트랜잭션 저장·복원
-- REST: 파일 업로드 및 설계/부품/핀/Net/Issue 조회
-- QCV: **공개 Sparrow PADS NET/PIN 문법 지원**; 삼성 내부 변형은 미검증
-- Stage 03: 정형 Rule adapter, 결정론적 범위/연결/FB 계산, 다섯 판정 상태·근거, MySQL Audit 이력
-- React: 실제 업로드/부품·Net 탐색/Rule 실행/저장된 이력 조회
-- Stage 01 실제 Parser·전체 AI 검증 엔진·Stage 04·기업 SSO는 이번 PoC 범위 밖입니다.
+- Python 3.12 권장(최소 3.11), FastAPI, Pydantic, SQLAlchemy, MySQL 8
+- Excel: openpyxl/XLSX, xlrd/XLS, 표준 csv / SI 단위는 Decimal
+- 화면: Streamlit, 브라우저 검증: Python Playwright
+- Graph: 불변 Snapshot + Map/Set 인덱스, 제한 깊이 BFS
+- Rule: 범위·속성 존재·Pin 연결·Net 일치·FB 조건부 계산, 다섯 상태와 Evidence
+- Java/Gradle/React/Node.js 설치는 필요하지 않습니다. Java 기준 버전은 Git `1a89f39`에 보존합니다.
 
-## 구조
+## 설치
 
-```text
-backend/
-  gradle/                         Gradle Wrapper
-  src/main/java/com/circuitagent/
-    design/model/                 DB 독립 도메인 모델
-    design/parse/                 BOM 및 Netlist 파서
-    design/graph/                 통합 및 연결 조회
-    design/persistence/           JPA 저장 및 복원
-    design/api/                   REST 업로드 및 조회
-  src/main/resources/db/migration/ MySQL Flyway schema
-  src/test/resources/fixtures/    커밋/체크섬 고정 실제 공개 자료
-  src/test/java/                 단위 및 실제 MySQL/API 통합 테스트
-docs/                            진행 기록, 모델/API/QCV 설명
+ZIP을 풀고 CircuitAgent 루트에서 실행합니다. 가상환경은 프로젝트 실행과 테스트에 모두 사용합니다.
+
+Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install --require-hashes -r backend/requirements.lock
+python -m pip install --no-deps -e backend
 ```
 
-## 검증
-
-JDK 21과 실행 중인 Docker가 필요합니다. MySQL 통합 테스트는 Testcontainers로
-MySQL 8.0.43을 실행하며 Docker가 없으면 실패합니다. 실제 DB 테스트를 H2로
-대체하거나 자동 건너뛰지 않습니다.
+macOS/Linux:
 
 ```sh
-python3 scripts/fetch-qcv-fixtures.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --require-hashes -r backend/requirements.lock
+python -m pip install --no-deps -e backend
+```
+
+`requirements.lock`은 API·화면·테스트 의존성을 모두 고정합니다. API만 필요하면 `python -m pip install -e backend`, 화면까지 설치하려면 `python -m pip install -e 'backend[ui]'`도 가능합니다.
+
+## MySQL
+
+Docker가 실행된 상태에서 처음 한 번 실행합니다. 아래 비밀번호는 로컬 개발용 예시이며 두 터미널 설정과 일치시켜야 합니다.
+
+```sh
+docker run --name circuitagent-mysql -e MYSQL_ROOT_PASSWORD=poc-root-password -e MYSQL_DATABASE=circuitagent -e MYSQL_USER=circuitagent -e MYSQL_PASSWORD=poc-db-password -p 127.0.0.1:3306:3306 -d mysql:8.0.43
+docker logs circuitagent-mysql
+```
+
+`ready for connections`를 확인합니다. 재시작은 `docker start circuitagent-mysql`입니다. 기존 Java DB를 사용할 경우 [전환·DB 호환 문서](docs/python-migration.md)를 먼저 확인하세요.
+
+## Backend — 터미널 1
+
+Windows PowerShell:
+
+```powershell
+$env:DB_HOST="127.0.0.1"
+$env:DB_PORT="3306"
+$env:DB_NAME="circuitagent"
+$env:DB_USERNAME="circuitagent"
+$env:DB_PASSWORD="poc-db-password"
+$env:CIRCUITAGENT_MODE="local-poc"
 cd backend
-./gradlew convertQcvBoms
-./gradlew clean test bootJar
+python -m uvicorn circuitagent.api:app --host 127.0.0.1 --port 8080 --no-proxy-headers
 ```
 
-Docker 없이 파서/모델/그래프만 검증하려면 범위를 명시합니다.
+macOS/Linux:
 
 ```sh
-./gradlew test --tests '*FixtureIntegrityTest' --tests '*DomainModelTest' \
-  --tests '*BomParserTest' --tests '*NetlistParserTest' --tests '*CircuitGraphTest'
-```
-
-JRE만 설치되어 있다면 JDK 21을 설치하고 `JAVA_HOME`을 지정하세요.
-관리형 환경에서는 허용된 캐시 경로에 `GRADLE_USER_HOME`을 설정하고,
-해당 환경의 Java proxy 및 CA trust 설정을 적용해야 합니다.
-
-## 로컬 실행
-
-기존 MySQL 8의 `circuitagent` DB를 사용하거나 다음과 같이 MySQL을 준비합니다.
-먼저 로컬용 `MYSQL_ROOT_PASSWORD`와 `DB_PASSWORD` 환경 변수를 설정하세요.
-
-```sh
-docker run --name circuitagent-mysql \
-  -e MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=circuitagent \
-  -e MYSQL_USER=circuitagent -e MYSQL_PASSWORD="$DB_PASSWORD" \
-  -p 127.0.0.1:3306:3306 -d mysql:8.0.43
-```
-
-DB가 준비된 후 실행합니다. Flyway가 테이블을 생성하고 Hibernate가 schema를 검증합니다.
-
-```sh
-export DB_URL='jdbc:mysql://localhost:3306/circuitagent?useUnicode=true&characterEncoding=UTF-8'
-export DB_USERNAME=circuitagent
+export DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=circuitagent
+export DB_USERNAME=circuitagent DB_PASSWORD=poc-db-password CIRCUITAGENT_MODE=local-poc
 cd backend
-./gradlew bootRun
+python -m uvicorn circuitagent.api:app --host 127.0.0.1 --port 8080 --no-proxy-headers
 ```
 
-MySQL 계정에는 `circuitagent` DB에 대한 테이블 생성/조회/수정 권한이 필요합니다.
-다른 DB에 원본 데이터를 덮어쓰는 마이그레이션은 없습니다.
+시작 시 고정 SQL V1~V4를 검사·적용합니다. 테이블을 삭제하거나 ORM 자동 생성으로 바꾸지 않습니다. API 설명: http://127.0.0.1:8080/api/docs / Rule 확인: http://127.0.0.1:8080/api/audit-rules
 
-[REST 사용법](docs/stage02-api.md) · [단계별 검증](docs/stage02-progress.md) ·
-[공통 모델](docs/stage02-model.md) · [QCV 추가 자료](docs/stage02-qcv.md)
+## 화면 — 터미널 2
 
-## Stage 02 리뷰 및 Stage 03 계약
-
-[PR #1 리뷰 결과](docs/stage02-review.md) · [Stage 03 조회 계약](docs/stage03-interface.md)
-
-현재는 신뢰된 PoC 환경용입니다. 인증·설계별 사용자 접근 통제가 없으므로
-사내 SSO/권한 및 원문 열람 정책 없이 실제 삼성 회로 데이터를 외부에 배포하지 마세요.
-
-[공개 QCV PoC 검증·출처·재현 방법](docs/qcv-poc-validation.md). 외부 원본/파생 XLSX는 라이선스가 명확하지 않아 커밋하지 않습니다. 전체 테스트 전 다운로드와 변환이 필요하며, 누락 시 테스트가 실패합니다.
-
-## Stage 03 + React 통합 PoC
-
-[연동 계약](docs/stage03-integration.md) · [실제 Sparrow 검증](docs/stage03-poc-validation.md) · [Audit API](docs/audit-api.md) · [React 실행](docs/frontend-guide.md) · [단계별 기록](docs/integration-progress.md)
-
-Backend103개(기존80+신규23), React unit6개, 실제 Chromium E2E2개를 실행했습니다. 실제 FE6 Rule은 PASS1/UNKNOWN5이며 PASS는 C5 nominal BOM 확인에 한정합니다. EN 저항의 NoMount, IC 신원·공차·실제 동작 조건 누락을 정상 동작으로 판정하지 않습니다.
+가상환경을 활성화하고 루트에서 실행합니다.
 
 ```sh
-cd frontend
-npm ci
-npm run dev
+circuitagent-web
 ```
 
-로컬 backend/MySQL이 먼저 실행되어야 합니다. 기본 API bind127.0.0.1이며 remote/production/enterprise 미설정 요청은 거절합니다. 로컬 경계는 사용자 인증이나 설계 소유권이 아니며 공개 proxy/인터넷에 배포하지 않습니다.
+http://127.0.0.1:8501 에 접속합니다. Backend는 별도 터미널에서 실행된 상태여야 합니다. 다른 Backend 포트라면 `API_BASE_URL` 환경변수를 로컬 주소로 지정합니다.
+
+업로드 파일: `.local/qcv-fixtures/fe.csv`, `.local/qcv-fixtures/fe.qcv`. U16 → Pin 5 → U16_EN → R107/R83을 조회하고 Rule을 실행합니다. 기본 6 Rule의 기대 결과는 PASS1/UNKNOWN5입니다. EN 저항은 둘 다 DNP이며 실제 전압/도통을 정상으로 단정하지 않습니다.
+
+ZIP에는 실제 PoC 입력이 포함됩니다. Git으로 받은 경우 루트에서 준비합니다.
+
+```sh
+python scripts/fetch-qcv-fixtures.py
+python -m circuitagent.conversion .local/qcv-fixtures
+```
+
+## 테스트·패키징
+
+가상환경을 활성화하고 `backend`에서 실행합니다. MySQL 통합 테스트는 Testcontainers가 별도 MySQL을 생성하므로 Docker가 필요합니다. 원본이 없거나 Docker가 없으면 실패하며 가짜 데이터나 SQLite로 대체/자동 skip하지 않습니다.
+
+```sh
+python -m pytest -q tests
+python -m ruff check circuitagent tests browser_tests
+python -m build
+```
+
+실제 브라우저 테스트는 MySQL, API(8080), 화면(8501)을 먼저 실행한 뒤 별도 터미널에서 진행합니다.
+
+```sh
+python -m playwright install chromium
+python -m pytest -q browser_tests
+```
+
+순수 파서·그래프·Rule 테스트만 실행할 때는 `python -m pytest -q tests/test_model_parsers.py tests/test_audit.py`로 범위를 명시합니다. 자세한 실제 결과는 [검증 문서](docs/python-validation.md)에 기록합니다.
 
 ## 코드를 읽는 순서
 
-각 클래스의 한국어 주석은 역할을 설명하고, 핵심 분기의 주석은 데이터 처리 이유와 한계를 설명합니다.
-
-| 순서 | 시작 파일 | 확인할 내용 |
+| 순서 | 파일 | 역할 |
 | --- | --- | --- |
-| 1 | [DesignImportService](backend/src/main/java/com/circuitagent/design/api/DesignImportService.java) | 파일 형식 선택 → 파싱 → 통합 → 저장 |
-| 2 | [BomParser](backend/src/main/java/com/circuitagent/design/parse/BomParser.java), [QcvNetlistParser](backend/src/main/java/com/circuitagent/design/parse/QcvNetlistParser.java) | 원본 행 보존, 단위·실장 상태, NET/PIN 구분 |
-| 3 | [CircuitAssembler](backend/src/main/java/com/circuitagent/design/graph/CircuitAssembler.java), [CircuitGraph](backend/src/main/java/com/circuitagent/design/graph/CircuitGraph.java) | Reference 매칭, Pin/Net 인덱스, 제한적 탐색 |
-| 4 | [CircuitDesignStore](backend/src/main/java/com/circuitagent/design/persistence/CircuitDesignStore.java) | FK 순서로 저장하고 공통 모델로 복원 |
-| 5 | [AuditService](backend/src/main/java/com/circuitagent/audit/poc/AuditService.java), [DeterministicRuleChecker](backend/src/main/java/com/circuitagent/audit/poc/DeterministicRuleChecker.java) | 한 Snapshot으로 평가, 누락·DNP·UNKNOWN, 계산 근거 |
-| 6 | [App.tsx](frontend/src/App.tsx) | 업로드 → 회로 탐색 → Audit → 이력 표시 |
+| 1 | [api.py](backend/circuitagent/api.py) | 업로드·조회·Audit HTTP 계약과 입력/로컬 경계 |
+| 2 | [domain.py](backend/circuitagent/domain.py) | 불변 Component/Part/Pin/Net/Issue 모델, 원문/정규값 분리 |
+| 3 | [bom.py](backend/circuitagent/bom.py), [netlist.py](backend/circuitagent/netlist.py) | CSV/XLSX/XLS·공개 QCV·KiCad 파싱 |
+| 4 | [graph.py](backend/circuitagent/graph.py) | Reference 통합·Pin/Net 탐색, Net 자동 병합 금지 |
+| 5 | [audit.py](backend/circuitagent/audit.py) | Decimal 비교·조건부 계산·UNKNOWN·Evidence |
+| 6 | [database.py](backend/circuitagent/database.py) | 기존 MySQL 스키마, 트랜잭션 저장·복원·버전 이력 |
+| 7 | [web.py](backend/circuitagent/web.py) | Python 화면, 서버 응답 표시·검색·업로드·검사 이력 |
 
-빌드 결과와 의존성은 재생성되는 파일입니다. Backend는 Gradle 명령으로, Frontend는 `npm ci` 후 테스트/빌드 명령으로 다시 생성합니다. 실제 QCV 원본과 변환 XLSX는 `.local/qcv-fixtures`에서 테스트 입력으로 사용합니다.
+[전환·호환성](docs/python-migration.md) · [API](docs/api.md) · [화면](docs/frontend-guide.md) · [Stage 03 계약](docs/stage03-interface.md)
+
+공개 Sparrow QCV 형식에서 검증한 PoC입니다. 삼성 내부 QCV 변형, Stage01 실제 Parser, 기업 SSO/설계별 접근 권한은 미연동입니다. 로컬/격리된 환경에서 사용하며 인증 미구현 API를 공개 인터넷에 배포하지 않습니다. Excel 수식 셀은 계산하지 않고 거절하므로 먼저 값으로 변환해야 합니다. 외부 원본은 출처/체크섬 manifest로 관리하고 재배포 권한을 추정하지 않습니다.
+
+BOM 입력은 CSV를 기본으로 사용합니다. 행 수나 컬럼 순서를 고정하지 않으며, 알려진 컬럼 별칭은 자동 식별합니다. 특이한 헤더는 화면의 선택적 BOM 매핑 JSON 또는 API `bomMapping`으로 지정합니다. 알 수 없는 컬럼은 동적 속성으로 보존합니다. CSV의 부품 속성과 QCV의 연결정보를 Reference로 결합하며, BOM만으로 배선을 추정하지 않습니다. 매핑 예제와 불규칙 행 처리 정책은 [API 문서](docs/api.md)에 있습니다. XLSX/XLS는 호환 파서 및 회귀 테스트로 유지합니다.

@@ -1,14 +1,20 @@
-.gradle/
+# Python environments, caches and packaging outputs
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
 build/
-.idea/
-*.iml
-.env
-node_modules/
 dist/
+.env
 *.log
 
-# External Sparrow sources have no explicit redistribution license
+# Public external sources/derived workbooks: licensing is not presumed
 .local/
-frontend/test-results/
-frontend/playwright-report/
-*.tsbuildinfo
+
+# Generated browser reports and local export archives
+playwright-report/
+test-results/
+*.zip

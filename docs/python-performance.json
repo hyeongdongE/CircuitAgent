@@ -1,0 +1,97 @@
+{
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+    "mysql": "8.0.43 Docker",
+    "samples": 3,
+    "api": "ASGI TestClient, real MySQL, no network/browser latency",
+    "fixture": "Actual Sparrow FE R3"
+  },
+  "samplesMs": [
+    {
+      "bomParsingMs": 154.07889599737246,
+      "qcvParsingMs": 421.26584899961017,
+      "integrationMs": 117.50744300661609,
+      "graphConstructionMs": 7.373146989266388,
+      "mysqlPersistenceMs": 1100.1159570005257,
+      "snapshotLoadMs": 264.75240899890196,
+      "ruleValidationMs": 1.935003005200997,
+      "circuitTraversalMs": 0.057002995163202286,
+      "ruleEvaluationIncludingHashMs": 63.223538993042894,
+      "auditPersistenceMs": 31.573869986459613,
+      "auditApiResponseMs": 26.144458999624476
+    },
+    {
+      "bomParsingMs": 191.807957002311,
+      "qcvParsingMs": 151.89899399410933,
+      "integrationMs": 134.99095999577548,
+      "graphConstructionMs": 6.438041004003026,
+      "mysqlPersistenceMs": 1262.4080700043123,
+      "snapshotLoadMs": 385.32291899900883,
+      "ruleValidationMs": 1.3900330086471513,
+      "circuitTraversalMs": 0.16787200001999736,
+      "ruleEvaluationIncludingHashMs": 268.3036889939103,
+      "auditPersistenceMs": 61.17942499986384,
+      "auditApiResponseMs": 34.16264099359978
+    },
+    {
+      "bomParsingMs": 92.41162599937525,
+      "qcvParsingMs": 111.57818899664562,
+      "integrationMs": 80.4912399908062,
+      "graphConstructionMs": 4.106826992938295,
+      "mysqlPersistenceMs": 5582.394042998203,
+      "snapshotLoadMs": 349.89074399345554,
+      "ruleValidationMs": 1.5995470021152869,
+      "circuitTraversalMs": 0.06125000072643161,
+      "ruleEvaluationIncludingHashMs": 208.00126899848692,
+      "auditPersistenceMs": 45.278089004568756,
+      "auditApiResponseMs": 27.658309001708403
+    }
+  ],
+  "statisticsMs": {
+    "bomParsingMs": {
+      "median": 154.07889599737246,
+      "mean": 146.09949299968625
+    },
+    "qcvParsingMs": {
+      "median": 151.89899399410933,
+      "mean": 228.24767733012172
+    },
+    "integrationMs": {
+      "median": 117.50744300661609,
+      "mean": 110.99654766439926
+    },
+    "graphConstructionMs": {
+      "median": 6.438041004003026,
+      "mean": 5.972671662069236
+    },
+    "mysqlPersistenceMs": {
+      "median": 1262.4080700043123,
+      "mean": 2648.306023334347
+    },
+    "snapshotLoadMs": {
+      "median": 349.89074399345554,
+      "mean": 333.32202399712213
+    },
+    "ruleValidationMs": {
+      "median": 1.5995470021152869,
+      "mean": 1.6415276719878118
+    },
+    "circuitTraversalMs": {
+      "median": 0.06125000072643161,
+      "mean": 0.09537499863654375
+    },
+    "ruleEvaluationIncludingHashMs": {
+      "median": 208.00126899848692,
+      "mean": 179.84283232848006
+    },
+    "auditPersistenceMs": {
+      "median": 45.278089004568756,
+      "mean": 46.0104613302974
+    },
+    "auditApiResponseMs": {
+      "median": 27.658309001708403,
+      "mean": 29.321802998310886
+    }
+  }
+}
