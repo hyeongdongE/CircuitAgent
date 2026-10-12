@@ -14,7 +14,7 @@ Python3.12.14/Linux, MySQL8.0.43 Docker, FastAPI/SQLAlchemy/Streamlit. SQL V1~V4
 
 ## 실행
 
-- `cd backend && python -m pytest -q tests --junitxml=...`: 143 PASS/FAIL0/ERROR0/SKIP0. 최종 집계는 [python-test-results.json](python-test-results.json).
+- `cd backend && python -m pytest -q tests --junitxml=...`: 162 PASS/FAIL0/ERROR0/SKIP0. 최종 집계는 [python-test-results.json](python-test-results.json).
 - `python -m pytest -q browser_tests`: 실제 Streamlit→FastAPI→MySQL, 공개FE 파일 업로드/탐색/Audit/이력/재조회와 모바일 누락 파일 오류, API mock 없음.
 - `python -m ruff check circuitagent tests browser_tests`, `python -m build`: Python lint 및 wheel/sdist. 별도 위치에 wheel을 설치해 import·6 Rule·4 SQL 리소스를 검사했다.
 - Java/Gradle/Node/JUnit은 이번 Python 실행에 사용하지 않았다. 이전 Java103/React6/browser2 결과와 현재 테스트 수를 합산하지 않는다.

@@ -9,7 +9,7 @@
 | 2 | Reference 통합·Pin/Net 인덱스·DNP를 구분한 제한 탐색·다섯 판정·정형 Adapter·Evidence | PASS |
 | 3 | SQLAlchemy/MySQL 트랜잭션·FK·원본·Audit envelope·API, 실제 기존 Java DB/Flyway 인계 확인 | PASS |
 | 4 | Streamlit 업로드·부품 검색·Pin/Net·검사/이력·오류 처리, 실제 Chromium2개 검증 | PASS |
-| 5 | SQL byte 비교, pytest143/실제 browser2, lint/wheel/sdist/설치 검증, 문서·성능·PR/ZIP 준비 | PASS |
+| 5 | SQL byte 비교, pytest162/실제 browser2, lint/wheel/sdist/설치 검증, 문서·성능·PR/ZIP 준비 | PASS |
 
 ## 수정과 중간 실패
 
@@ -34,4 +34,8 @@
 
 삼성 내부 QCV 변형, Stage01 실제 Parser 계약, 기업 SSO/설계별 권한 및 운영 배포는 BLOCKED다. Python Excel 수식 재계산은 미지원이며 XLSX 수식 입력은 거절한다. XLS 저장값과 복잡한 표시 형식의 동등성을 가정하지 않는다. Java/Python 정규 hash의 숫자 표현 차이는 전환 문서에 명시한다.
 
-최종 pytest143 PASS/FAIL0/ERROR0/SKIP0, 실제 browser2 PASS, wheel/sdist/설치/lint PASS. 고밀도 자체 Fixture5000개 부품/10000연결에서 Net과 부품을 한 번씩만 펼쳐 quadratic 핀 쌍 생성을 피하면서 도달 관계와0Ω 부품을 유지했다.
+최종 pytest162 PASS/FAIL0/ERROR0/SKIP0, 실제 browser2 PASS, wheel/sdist/설치/lint PASS. 고밀도 자체 Fixture5000개 부품/10000연결에서 Net과 부품을 한 번씩만 펼쳐 quadratic 핀 쌍 생성을 피하면서 도달 관계와0Ω 부품을 유지했다.
+
+CSV 동적 입력 후속 개선: 업로드 기본 입력을 CSV로 전환했다. 행 개수·컬럼 순서·속성 집합에 고정 배열이나 회로별 상수를 적용하지 않는다. 선택적 BOM 매핑·인코딩·구분자·단위·NoMount 정책을 추가하고, 원본 헤더 순서 및 불규칙 행의 추가 값도 보존한다. 세 실제 CSV 보드와 사용자 정의 컬럼, 변동 행 수, CP949, 잘못된 매핑을 회귀 테스트한다. BOM 속성과 QCV 연결은 Reference로만 통합한다.
+
+최종 CSV 브라우저 재검증: 화면 갱신 완료를 기다린 후 핀을 선택하도록 테스트를 수정했고, 실제 CSV→업로드→MySQL→U16 Net 탐색→Audit→이력 재조회 2개 브라우저 테스트가 모두 통과했다. 전체 Python162 PASS, browser2 PASS이며 실패/미실행 0이다. 테스트 범위 밖 삼성 QCV/SSO 지원은 완료로 간주하지 않는다.

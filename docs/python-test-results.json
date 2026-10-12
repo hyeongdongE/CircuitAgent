@@ -2,19 +2,20 @@
   "date": "2026-10-12",
   "baseCommit": "1a89f39936f6d07188b521c32d4f4f1d18767b4b",
   "branch": "feat/python-migration",
-  "testedSourceCommit": null,
+  "testedSourceCommit": "2d9c61f80bae445c7347be763314dcfa9327ce95",
   "previousJavaTests": 103,
   "previousJavaResultsAreNotNewPythonTests": true,
   "python": {
-    "tests": 143,
+    "tests": 162,
     "failures": 0,
     "errors": 0,
     "skipped": 0,
-    "durationSeconds": 73.035,
+    "durationSeconds": 82.342,
     "modules": {
       "tests.test_audit": 27,
-      "tests.test_model_parsers": 82,
-      "tests.test_mysql_api": 25,
+      "tests.test_dynamic_csv": 17,
+      "tests.test_model_parsers": 81,
+      "tests.test_mysql_api": 28,
       "tests.test_web": 9
     }
   },
@@ -23,7 +24,7 @@
     "failures": 0,
     "errors": 0,
     "skipped": 0,
-    "durationSeconds": 32.155,
+    "durationSeconds": 26.364,
     "modules": {
       "browser_tests.test_real_ui": 2
     },
@@ -33,7 +34,7 @@
     "wheel": "PASS",
     "sdist": "PASS",
     "installedWheelSmoke": "PASS",
-    "wheelSHA256": "6a18caa34487e26d7448895e77c2b1b5f9a82ba49176ccb479a0e803e87de689"
+    "wheelSHA256": "8dca236bbddc0ef83883553e2f8da74240a3845d135d716029b52c42d03c85af"
   },
   "lint": "PASS",
   "mysql": "Actual MySQL8.0.43 Testcontainers plus real prior Java database handoff/restore; FK/rollback/isolation/source bytes checked",
@@ -62,5 +63,6 @@
     "enterprise SSO/design authorization",
     "Excel formula recalculation"
   ],
-  "sourceLocations": "Original QCV/CSV/XLSX/PDF are local-only; fixed public manifests committed"
+  "sourceLocations": "Original QCV/CSV/XLSX/PDF are local-only; fixed public manifests committed",
+  "primaryBomInput": "CSV, dynamic header mapping and variable-length rows"
 }
